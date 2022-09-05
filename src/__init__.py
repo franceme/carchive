@@ -50,7 +50,7 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, reponame: str, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None):
+    def __init__(self, reponame: str, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_jsonql: bool = False):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
@@ -91,8 +91,14 @@ class GRepo(object):
         except Exception as e:
             if self.print:
                 self.out(f"Issue with deleting the file: {e}")
-
         return self
+    
+    @property
+    def file_to_base_64(self, file: str, password: bool = False):
+        with open(file,'r') as reader:
+            contents = reader.readlines()
+        return str_to_base64(contents, password)
+
 
     def get_info(self):
         return {
@@ -157,7 +163,20 @@ class GRepo(object):
     
     @property
     def jsonl(self):
-        return None
+        jsonl_file = "stub.jsonl"
+        with open(jsonl_file, 'w') as writer:
+            for root, directories, filenames in os.walk(self.reponame):
+                for filename in filenames:
+                        foil = os.path.join(root, filename)
+
+                        current_file_info = {
+                            'file':foil,
+                            'hash':hash(foil),
+                            'base64':self.file_to_base_64(foil)
+                        }
+            
+                        writer.write(f"{json.dump(current_file_info)}\n")
+        return jsonl_file
 
 class GitHubRepo(GRepo):
     def __init__(self, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,write_statistics:bool=False,local_dir:bool=False,logfile:str=".run_logs.txt"):
