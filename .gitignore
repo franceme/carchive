@@ -1,3 +1,5 @@
 dist/
 build/
 package_name/__pycache__/
+**/__pycache__
+**/UNKNOWN.egg-info
