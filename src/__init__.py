@@ -1,6 +1,11 @@
 import os, sys, subprocess, json, base64, hashlib
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 
+"""
+Reference/Aide: https://github.com/franceme/Scripts/blob/master/funbelts/__init__.py
+
+"""
+
 try:
     from cryptography.fernet import Fernet
 except:
@@ -60,19 +65,13 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, reponame:str, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,write_statistics:bool=False,local_dir:bool=False,logfile:str=".run_logs.txt",zip_url:str=None, jsonl_file:str=None,
-    archive_log:str=None):
+    def __init__(self, reponame:str, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,local_dir:bool=False,jsonl_file:str=None):
         self.delete = delete
-        self.print = not silent
-        self.out = lambda string:logg(logfile,string)
-        self.write_statistics = write_statistics
         self.tag = None
         self.commit = commit or None
         self.reponame = reponame
         self.cloneurl = None
-        self.zip_url_base = zip_url
         self.jsonl = jsonl_file
-        self.archive_log = archive_log
         if local_dir:
             self.url = "file://" + self.reponame
             self.full_url = repo
@@ -80,13 +79,6 @@ class GRepo(object):
             repo = repo.replace('http://','https://')
             self.url = repo
             self.full_url = repo
-            if self.write_statistics:
-                try:
-                    self.GRepo = Github().get_repo(repo.replace("https://github.com/",""))
-                except Exception as e:
-                    if self.print:
-                        self.out(f"Issue with checking the statistics: {e}")
-                    pass
 
             self.cloneurl = "git clone --depth 1"
             if is_not_empty(tag):
