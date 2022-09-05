@@ -2,5 +2,26 @@
 	// See https://go.microsoft.com/fwlink/?LinkId=733558
 	// for the documentation about the tasks.json format
 	"version": "2.0.0",
-	"tasks": [{"label": "execute", "type": "shell", "command": "invoke execute"}, {"label": "single_run", "type": "shell", "command": "single_run ${file}"}, {"label": "install_ext", "type": "shell", "command": "/bin/vsextensions"}, {"label": "sign_on", "type": "shell", "command": "git config --global user.email \"EMAIL\" && git config --global user.name \"UserName ($(whodis)@docker)\""}]
+	"tasks": [
+		{
+			"label": "execute",
+			"type": "shell",
+			"command": "invoke execute"
+		},
+		{
+			"label": "single_run",
+			"type": "shell",
+			"command": "single_run ${file}"
+		},
+		{
+			"label": "install_ext",
+			"type": "shell",
+			"command": "/bin/vsextensions"
+		},
+		{
+			"label": "sign_on",
+			"type": "shell",
+			"command": "git config --global user.email \"EMAIL\" && git config --global user.name \"UserName ($(whodis)@docker)\""
+		}
+	]
 }

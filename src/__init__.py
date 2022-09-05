@@ -3,48 +3,33 @@ from waybackpy import WaybackMachineSaveAPI as checkpoint
 
 """
 Reference/Aide: https://github.com/franceme/Scripts/blob/master/funbelts/__init__.py
-
 """
 
 try:
     from cryptography.fernet import Fernet
-except:
-    os.system(str(sys.executable) + " -m pip install cryptography")
+except Exception:
+    os.system(f"{str(sys.executable)} -m pip install cryptography")
     from cryptography.fernet import Fernet
 
-def live_link(url:str):
+def live_link(url: str):
     response = False
     try:
         response_type = requests.get(url)
         response = response_type.status_code < 400
         time.sleep(2)
-    except:
+    except Exception:
         pass
     return response
 
-def save_link(url:str):
-    save_url = None
-    if live_link(url):
-        saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
-        try:
-            save_url = saver.save()
-            time.sleep(10)
-            if save_url is None:
-                save_url = saver.saved_archive
-        except Exception as e:
-            print(f"Issue with saving the link {url}: {e}")
-            pass
-    return save_url
-
 def hash(file):
-	sha512 = hashlib.sha512()
-	with open(file,'rb') as f:
-		while True:
-			data = f.read(65536)
-			if not data:
-				break
-			sha512.update(data)
-	return str(sha512.hexdigest())
+    sha512 = hashlib.sha512()
+    with open(file, 'rb') as f:
+        while True:
+            if data := f.read(65536):
+                sha512.update(data)
+            else:
+                break
+    return str(sha512.hexdigest())
 
 def str_to_base64(string, password:bool=False, encoding:str='utf-8'):
     current = base64.b64encode(string.encode(encoding))
@@ -65,7 +50,7 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, reponame:str, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,local_dir:bool=False,jsonl_file:str=None):
+    def __init__(self, reponame: str, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
@@ -73,19 +58,17 @@ class GRepo(object):
         self.cloneurl = None
         self.jsonl = jsonl_file
         if local_dir:
-            self.url = "file://" + self.reponame
+            self.url = f"file://{self.reponame}"
             self.full_url = repo
         else:
-            repo = repo.replace('http://','https://')
+            repo = repo.replace('http://', 'https://')
             self.url = repo
             self.full_url = repo
-
             self.cloneurl = "git clone --depth 1"
             if is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
                 self.full_url += "<b>" + tag
-
             if is_not_empty(self.commit):
                 self.full_url += "<#>" + self.commit
 
@@ -99,35 +82,18 @@ class GRepo(object):
                 run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../", display=self.print)
 
         return self
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             if self.delete:
-                if self.print:
-                    self.out("Deleting the file")
-
+                self.out("Deleting the file")
                 run(f"yes|rm -r {self.reponame}", display=self.print)
         except Exception as e:
             if self.print:
                 self.out(f"Issue with deleting the file: {e}")
 
-        try:
-            if self.write_statistics:
-                foil_out = ".github_stats.csv"
-                make_header = not os.path.exists(foil_out)
-
-                with open(foil_out,"a+") as writer:
-                    if make_header:
-                        writer.write("RepoName,RepoURL,RepoTopics,Stars\n")
-                    writer.write(','.join( [self.reponame,self.GRepo.url, ':'.join(list(self.GRepo.get_topics())),str(self.GRepo.stargazers_count)] ) + "\n")
-        except Exception as e:
-            if self.print:
-                self.out(f"Issue with writing the statistics: {e}")
-
-        if self.archive_log:
-            with open(self.archive_log,"a+") as writer:
-                writer.write(f"{self.reponame},{save_link(self.url)}\n")
-
         return self
+
     def get_info(self):
         return {
             'URL':self.url,
@@ -137,6 +103,7 @@ class GRepo(object):
             'CloneUrl':self.cloneurl,
             'datetime':timr.utcnow().strftime('%Y%m%dT%H%M%S')
         }
+
     def get_info_frame(self):
         return dyct_frame(self.get_info())
 
@@ -171,8 +138,26 @@ class GRepo(object):
         self.zip_url_base = url_builder
         return self.zip_url_base
 
-    def save_link(self):
-        return save_link(self.zip_url)
+    @property
+    def webarchive(self):
+        save_url = None
+        url = self.zip_url
+        if live_link(url):
+            saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
+
+            try:
+                save_url = saver.save()
+                time.sleep(10)
+                if save_url is None:
+                    save_url = saver.saved_archive
+            except Exception as e:
+                print(f"Issue with saving the link {url}: {e}")
+                save_url = e
+        return save_url
+    
+    @property
+    def jsonl(self):
+        return None
 
 class GitHubRepo(GRepo):
     def __init__(self, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,write_statistics:bool=False,local_dir:bool=False,logfile:str=".run_logs.txt"):
