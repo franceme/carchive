@@ -39,13 +39,15 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_jsonql: bool = False):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_obj: ut.HuggingFace = None, exclude_extensions: list = None):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
         self.cloneurl = None
         self.jsonl_file = jsonl_file
         self.repo = repo
+        self.huggerface = huggingface_obj
+        self.exclude_extensions = exclude_extensions
 
         if local_dir:
             self.url = f"file://{self.repo}"
@@ -58,10 +60,10 @@ class GRepo(object):
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
-                self.full_url += "<b>" + tag
+                self.full_url += f"<b>{tag}"
             if ut.is_not_empty(self.commit):
                 self.full_url += "<#>" + self.commit
-        
+
         self.reponame = self.url.split('/')[-1].replace('.git','')
 
     def __enter__(self):
@@ -89,23 +91,20 @@ class GRepo(object):
             contents = reader.readlines()
         return str_to_base64(''.join(contents))
 
-    def get_info(self):
+    @property
+    def info(self):
         return {
             'URL':self.url,
             'RepoName':self.reponame,
             'Commit':self.commit,
             'FullUrl':self.full_url,
-            'CloneUrl':self.cloneurl,
-            'datetime':timr.utcnow().strftime('%Y%m%dT%H%M%S')
+            'CloneUrl':self.cloneurl
         }
-
-    def get_info_frame(self):
-        return dyct_frame(self.get_info())
 
     @property
     def zip_url(self):
         if self.zip_url_base is not None:
-            return zip_url_base
+            return self.zip_url_base
 
         if not self.url.startswith("https://github.com/"):
             print("NONE")
@@ -113,21 +112,21 @@ class GRepo(object):
 
         # url_builder = "https://web.archive.org/save/" + repo.url + "/archive"
         url_builder = self.url + "/archive"
-        if is_not_empty(self.commit):
+        if ut.is_not_empty(self.commit):
             # https://github.com/owner/reponame/archive/hash.zip
             url_builder += f"/{self.commit}.zip"
 
-        if not is_not_empty(self.commit):
+        if not ut.is_not_empty(self.commit):
             # https://web.archive.org/save/https://github.com/owner/reponame/archive/refs/heads/tag.zip
             url_builder += f"/refs/heads"
-            if not is_not_empty(self.tag):
+            if not ut.is_not_empty(self.tag):
                 for base_branch in ['master', 'main']:
                     temp_url = url_builder + f"/{base_branch}.zip"
                     if live_link(temp_url):
                         url_builder = temp_url
                         break
                     time.sleep(4)
-            elif is_not_empty(self.tag):
+            elif ut.is_not_empty(self.tag):
                 url_builder += f"/{self.tag}.zip"
 
         self.zip_url_base = url_builder
@@ -152,21 +151,23 @@ class GRepo(object):
     
     @property
     def jsonl(self):
-        jsonl_file = "stub.jsonl"
-        if os.path.exists(jsonl_file):
-            os.remove(jsonl_file)
+        if os.path.exists(self.jsonl_file):
+            os.remove(self.jsonl_file)
 
         try:
-            with open(jsonl_file, 'w+') as writer:
+            with open(self.jsonl_file, 'w+') as writer:
+                writer.write(str(json.dumps({**{'header':True},**self.info})) + "\n")
+
                 for root, directories, filenames in os.walk(self.reponame):
                     for filename in filenames:
                             foil = os.path.join(root, filename)
                             ext = foil.split('.')[-1].lower()
 
-                            if ext in ['py','java','txt','md','yml','json','jsonl'] :
+                            if self.exclude_extensions is None or ext not in self.exclude_extensions:
 
                                 mini = self.file_to_base_64(foil)
                                 current_file_info = {
+                                    'header':False,
                                     'file':foil,
                                     'hash':hash(foil),
                                     'base64':mini
@@ -174,9 +175,9 @@ class GRepo(object):
                                 writer.write(f"{json.dumps(current_file_info)}\n")
         except Exception as e:
             print(f"Issue with creating the jsonl file: {e}")
-        return jsonl_file
 
-class GitHubRepo(GRepo):
-    def __init__(self, repo:str, tag:str=None, commit:str=None,delete:bool=True,silent:bool=True,write_statistics:bool=False,local_dir:bool=False,logfile:str=".run_logs.txt"):
-        reponame = repo.replace("http://", "https://").replace('https://github.com/','').split('/')[-1].replace('.git','')
-        super().__init__(reponame, repo, tag, commit, delete, silent, write_statistics, local_dir, logfile)
+        if os.path.exists(self.jsonl_file) and self.huggerface is not None:
+            with self.huggerface as hf:
+                hf[self.jsonl_file] = self.jsonl_file
+
+        return self.jsonl_file
