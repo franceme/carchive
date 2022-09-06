@@ -1,4 +1,4 @@
-import os, sys, subprocess, json, base64, hashlib
+import os, sys, requests, json, base64, hashlib, time, contextlib, funbelts as ut
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 
 """
@@ -13,12 +13,10 @@ except Exception:
 
 def live_link(url: str):
     response = False
-    try:
+    with contextlib.suppress(Exception):
         response_type = requests.get(url)
         response = response_type.status_code < 400
         time.sleep(2)
-    except Exception:
-        pass
     return response
 
 def hash(file):
@@ -50,47 +48,49 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, reponame: str, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_jsonql: bool = False):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, silent: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_jsonql: bool = False):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
-        self.reponame = reponame
         self.cloneurl = None
         self.jsonl = jsonl_file
+        self.repo = repo
+
         if local_dir:
-            self.url = f"file://{self.reponame}"
+            self.url = f"file://{self.repo}"
             self.full_url = repo
         else:
             repo = repo.replace('http://', 'https://')
             self.url = repo
             self.full_url = repo
             self.cloneurl = "git clone --depth 1"
-            if is_not_empty(tag):
+            if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
                 self.full_url += "<b>" + tag
-            if is_not_empty(self.commit):
+            if ut.is_not_empty(self.commit):
                 self.full_url += "<#>" + self.commit
+        
+        self.reponame = self.url.split('/')[-1].replace('.git','')
 
     def __enter__(self):
         if not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
-            self.out(f"Waiting between scanning projects to ensure GitHub Doesn't get angry")
-            wait_for(5, silent=not self.print)
-            run(f"{self.cloneurl} {self.url}", display=self.print)
+            print("Waiting between scanning projects to ensure GitHub Doesn't get angry")
+            ut.wait_for(5)
+            ut.run(f"{self.cloneurl} {self.url}")
 
-            if is_not_empty(self.commit):
-                run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../", display=self.print)
+            if ut.is_not_empty(self.commit):
+                ut.run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../")
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             if self.delete:
-                self.out("Deleting the file")
-                run(f"yes|rm -r {self.reponame}", display=self.print)
+                print("Deleting the file")
+                ut.run(f"yes|rm -r {self.reponame}")
         except Exception as e:
-            if self.print:
-                self.out(f"Issue with deleting the file: {e}")
+            print(f"Issue with deleting the file: {e}")
         return self
     
     @property
@@ -98,7 +98,6 @@ class GRepo(object):
         with open(file,'r') as reader:
             contents = reader.readlines()
         return str_to_base64(contents, password)
-
 
     def get_info(self):
         return {
@@ -174,7 +173,7 @@ class GRepo(object):
                             'hash':hash(foil),
                             'base64':self.file_to_base_64(foil)
                         }
-            
+
                         writer.write(f"{json.dump(current_file_info)}\n")
         return jsonl_file
 
