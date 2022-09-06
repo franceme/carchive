@@ -5,12 +5,6 @@ from waybackpy import WaybackMachineSaveAPI as checkpoint
 Reference/Aide: https://github.com/franceme/Scripts/blob/master/funbelts/__init__.py
 """
 
-try:
-    from cryptography.fernet import Fernet
-except Exception:
-    os.system(f"{str(sys.executable)} -m pip install cryptography")
-    from cryptography.fernet import Fernet
-
 def live_link(url: str):
     response = False
     with contextlib.suppress(Exception):
@@ -29,18 +23,15 @@ def hash(file):
                 break
     return str(sha512.hexdigest())
 
-def str_to_base64(string, password:bool=False, encoding:str='utf-8'):
-    current = base64.b64encode(string.encode(encoding))
-    if password:
-        key = Fernet.generate_key()
-        current = Fernet(key).encrypt(current)
-        key = key.decode(encoding)
-    return (current.decode(encoding), key or None)
+def str_to_base64(string, encoding:str='utf-8'):
+    try:
+        return base64.b64encode(string.encode(encoding)).decode(encoding)
+    except Exception as e:
+        print(e)
+        return None
 
-def base64_to_str(b64, password:str=None, encoding:str='utf-8'):
-     if password:
-         current = Fernet(password.encode(encoding)).decrypt(b64.encode(encoding)).decode(encoding)
-     return base64.b64decode(current or b64).decode(encoding)
+def base64_to_str(b64, encoding:str='utf-8'):
+     return base64.b64decode(b64).decode(encoding)
 
 class GRepo(object):
     """
@@ -53,7 +44,7 @@ class GRepo(object):
         self.tag = None
         self.commit = commit or None
         self.cloneurl = None
-        self.jsonl = jsonl_file
+        self.jsonl_file = jsonl_file
         self.repo = repo
 
         if local_dir:
@@ -93,11 +84,10 @@ class GRepo(object):
             print(f"Issue with deleting the file: {e}")
         return self
     
-    @property
-    def file_to_base_64(self, file: str, password: bool = False):
+    def file_to_base_64(self, file: str):
         with open(file,'r') as reader:
             contents = reader.readlines()
-        return str_to_base64(contents, password)
+        return str_to_base64(''.join(contents))
 
     def get_info(self):
         return {
@@ -163,18 +153,27 @@ class GRepo(object):
     @property
     def jsonl(self):
         jsonl_file = "stub.jsonl"
-        with open(jsonl_file, 'w') as writer:
-            for root, directories, filenames in os.walk(self.reponame):
-                for filename in filenames:
-                        foil = os.path.join(root, filename)
+        if os.path.exists(jsonl_file):
+            os.remove(jsonl_file)
 
-                        current_file_info = {
-                            'file':foil,
-                            'hash':hash(foil),
-                            'base64':self.file_to_base_64(foil)
-                        }
+        try:
+            with open(jsonl_file, 'w+') as writer:
+                for root, directories, filenames in os.walk(self.reponame):
+                    for filename in filenames:
+                            foil = os.path.join(root, filename)
+                            ext = foil.split('.')[-1].lower()
 
-                        writer.write(f"{json.dump(current_file_info)}\n")
+                            if ext in ['py','java','txt','md','yml','json','jsonl'] :
+
+                                mini = self.file_to_base_64(foil)
+                                current_file_info = {
+                                    'file':foil,
+                                    'hash':hash(foil),
+                                    'base64':mini
+                                }
+                                writer.write(f"{json.dumps(current_file_info)}\n")
+        except Exception as e:
+            print(f"Issue with creating the jsonl file: {e}")
         return jsonl_file
 
 class GitHubRepo(GRepo):
