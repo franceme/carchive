@@ -42,7 +42,8 @@
 					"GitHub.copilot",
 					"hbenl.vscode-test-explorer",
 					"Alpha4.jsonl",
-					"WakaTime.vscode-wakatime"
+					"WakaTime.vscode-wakatime",
+					"cschleiden.vscode-github-actions"
 				]
 			}
 		}

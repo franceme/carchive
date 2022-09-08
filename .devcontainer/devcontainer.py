@@ -4,5 +4,5 @@ run = lambda x:os.system(x)
 
 for x in ['Gruntfuggly.todo-tree', 'ms-python.python', 'actboy168.tasks', 'dchanco.vsc-invoke', 'donjayamanne.githistory', 'alefragnani.Bookmarks', 'littlefoxteam.vscode-python-test-adapter', 'njpwerner.autodocstring', 'sourcery.sourcery', 'GitHub.copilot', 'hbenl.vscode-test-explorer'
 					"Alpha4.jsonl",
-					"WakaTime.vscode-wakatime"]:
+					"WakaTime.vscode-wakatime","cschleiden.vscode-github-actions"]:
 	run(f"code-server --install-extension {x}")
