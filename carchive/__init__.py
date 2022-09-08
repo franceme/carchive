@@ -1,9 +1,5 @@
-import os, sys, requests, json, base64, hashlib, time, contextlib, funbelts as ut
+import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut
 from waybackpy import WaybackMachineSaveAPI as checkpoint
-
-"""
-Reference/Aide: https://github.com/franceme/Scripts/blob/master/funbelts/__init__.py
-"""
 
 def live_link(url: str):
     response = False

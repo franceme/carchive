@@ -5,27 +5,12 @@ from fileinput import FileInput as finput
 import os
 import sys
 from setuptools import find_packages, setup
-from pathlib import Path
-import glob
-from glob import glob as re
-try:
-	from pylint.reporters.json_reporter import JSONReporter
-except:
-	pass
-try:
-	from src.information import VERSION, REQ
-except:
-	pass
-try:
-	from information import VERSION, REQ
-except:
-	pass
 
 # endregion
 # region Basic Information
 here = os.path.abspath(os.path.dirname(__file__))
 py_version = sys.version_info[:2]
-NAME = ""
+NAME = "carchive"
 AUTHOR = 'Miles Frantz'
 EMAIL = 'frantzme@vt.edu'
 DESCRIPTION = 'My short description for my project.'
@@ -120,7 +105,8 @@ setup(
 	entry_points={
 	},
 	install_requires=[
-		REQ
+		"funbelts",
+		"waybackpy",
 	],
 	include_package_data=True,
 	classifiers=[
