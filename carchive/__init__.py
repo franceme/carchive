@@ -29,6 +29,20 @@ def str_to_base64(string, encoding:str='utf-8'):
 def base64_to_str(b64, encoding:str='utf-8'):
      return base64.b64decode(b64).decode(encoding)
 
+def file_to_base_64(file: str):
+    with open(file,'r') as reader:
+        contents = reader.readlines()
+    return str_to_base64(''.join(contents))
+
+def base_64_to_file(contents,file=None):
+    string_contents = base64_to_str(contents)
+    if file:
+        with open(file,'w+') as writer:
+            writer.write(string_contents)
+        return 'true'
+    else:
+        return string_contents
+
 class GRepo(object):
     """
     Sample usage:
@@ -81,11 +95,7 @@ class GRepo(object):
         except Exception as e:
             print(f"Issue with deleting the file: {e}")
         return self
-    
-    def file_to_base_64(self, file: str):
-        with open(file,'r') as reader:
-            contents = reader.readlines()
-        return str_to_base64(''.join(contents))
+
 
     @property
     def info(self):
@@ -161,7 +171,7 @@ class GRepo(object):
 
                             if self.exclude_extensions is None or ext not in self.exclude_extensions:
 
-                                mini = self.file_to_base_64(foil)
+                                mini = file_to_base_64(foil)
                                 current_file_info = {
                                     'header':False,
                                     'file':foil,
