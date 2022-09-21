@@ -1,4 +1,5 @@
-import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut
+import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests
+from ghapi.all import GhApi
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 
 def live_link(url: str):
@@ -49,21 +50,21 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_obj = None, exclude_extensions: list = None):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = []):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
         self.cloneurl = None
         self.jsonl_file = jsonl_file
         self.repo = repo
-        self.huggerface = huggingface_obj
         self.exclude_extensions = exclude_extensions
 
         if local_dir:
             self.url = f"file://{self.repo}"
             self.full_url = repo
+            self.api = None
         else:
-            repo = repo.replace('http://', 'https://')
+            repo = repo.replace('http://', 'https://').replace('.git','')
             self.url = repo
             self.full_url = repo
             self.cloneurl = "git clone --depth 1"
@@ -72,11 +73,45 @@ class GRepo(object):
                 self.cloneurl += f" --branch {tag}"
                 self.full_url += f"<b>{tag}"
             if ut.is_not_empty(self.commit):
-                self.full_url += "<#>" + self.commit
+                self.full_url += f"<#>{self.commit}"
+
+            gh_api = GhApi()
+            splitzies = self.url.replace('https://github.com/','').split('/')
+            owner,corerepo = splitzies[0], splitzies[1]
+
+            try:
+                self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref='heads/main')
+            except:
+                try:
+                    self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref='heads/master')
+                except:
+                    print("No master or main branch found")
+                    self.gh_api = None
+            if self.gh_api is not None:
+                self.gh_api.owner = owner
+                self.gh_api.repo = corerepo
+                self.gh_api.commit = self.gh_api['object']['sha']
+                self.gh_api.commit_url = '/'.join([
+                    "https://github.com",
+                    self.gh_api.owner,
+                    self.gh_api.repo,
+                    "tree",
+                    self.gh_api.commit
+                ])
+                self.gh_api.commit_zip_url = '/'.join([
+                    "https://github.com",
+                    self.gh_api.owner,
+                    self.gh_api.repo,
+                    "archive",
+                    str(self.gh_api.commit)+".zip"
+                ])
 
         self.reponame = self.url.split('/')[-1].replace('.git','')
+        self.webarchive_url_base = None
+        self.zip_url_base = None
 
-    def __enter__(self):
+
+    def __clone(self):
         if not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
             print("Waiting between scanning projects to ensure GitHub Doesn't get angry")
             ut.wait_for(5)
@@ -85,6 +120,8 @@ class GRepo(object):
             if ut.is_not_empty(self.commit):
                 ut.run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../")
 
+    def __enter__(self):
+        self.__clone()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -96,20 +133,13 @@ class GRepo(object):
             print(f"Issue with deleting the file: {e}")
         return self
 
-
-    @property
-    def info(self):
-        return {
-            'URL':self.url,
-            'RepoName':self.reponame,
-            'Commit':self.commit,
-            'FullUrl':self.full_url,
-            'CloneUrl':self.cloneurl
-        }
-
     @property
     def zip_url(self):
         if self.zip_url_base is not None:
+            return self.zip_url_base
+
+        if self.gh_api is not None:
+            self.zip_url_base = self.gh_api.commit_zip_url
             return self.zip_url_base
 
         if not self.url.startswith("https://github.com/"):
@@ -139,6 +169,14 @@ class GRepo(object):
         return self.zip_url_base
 
     @property
+    def webarchive_save_url(self):
+        if self.webarchive_url_base is not None:
+            return self.webarchive_url_base
+
+        self.webarchive_url_base = "https://web.archive.org/save/" + str(self.zip_url)
+        return self.webarchive_url_base
+
+    @property
     def webarchive(self):
         save_url = None
         url = self.zip_url
@@ -156,34 +194,55 @@ class GRepo(object):
         return save_url
     
     @property
+    def info(self):
+        return {
+            'URL':self.url,
+            'RepoName':self.reponame,
+            'Commit':self.commit,
+            'FullUrl':self.full_url,
+            'CloneUrl':self.cloneurl,
+            'ZipUrl':self.zip_url,
+            'WebArchiveSaveUrl':self.webarchive_save_url,
+            'WebArchiveUrl':self.webarchive
+        }
+
+    def is_bin_file(self,foil):
+        #https://stackoverflow.com/questions/898669/how-can-i-detect-if-a-file-is-binary-non-text-in-python
+        textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+        is_binary_string = lambda bytes: bool(bytes.translate(None, textchars))
+        return is_binary_string(open(foil, 'rb').read(1024))
+
+    @property
     def jsonl(self):
         if os.path.exists(self.jsonl_file):
-            os.remove(self.jsonl_file)
+            return self.jsonl_file
 
         try:
             with open(self.jsonl_file, 'w+') as writer:
                 writer.write(str(json.dumps({**{'header':True},**self.info})) + "\n")
-
+                self.__clone()
                 for root, directories, filenames in os.walk(self.reponame):
                     for filename in filenames:
                             foil = os.path.join(root, filename)
                             ext = foil.split('.')[-1].lower()
 
-                            if self.exclude_extensions is None or ext not in self.exclude_extensions:
-
-                                mini = file_to_base_64(foil)
-                                current_file_info = {
-                                    'header':False,
-                                    'file':foil,
-                                    'hash':hash(foil),
-                                    'base64':mini
-                                }
-                                writer.write(f"{json.dumps(current_file_info)}\n")
+                            if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
+                                try:
+                                    try:
+                                        mini = file_to_base_64(foil)
+                                    except:
+                                        mini = None
+                                    current_file_info = {
+                                        'header':False,
+                                        'file':foil,
+                                        'hash':hash(foil),
+                                        'base64':mini
+                                    }
+                                    writer.write(str(json.dumps(current_file_info)) + "\n")
+                                except Exception as e:
+                                    print(">: "+str(e))
+                                    pass
         except Exception as e:
             print(f"Issue with creating the jsonl file: {e}")
-
-        if os.path.exists(self.jsonl_file) and self.huggerface is not None:
-            with self.huggerface as hf:
-                hf[self.jsonl_file] = self.jsonl_file
 
         return self.jsonl_file

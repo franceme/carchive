@@ -18,3 +18,4 @@ logs/
 coder.json
 
 machineid
+**/sample.jsonl

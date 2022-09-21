@@ -1,7 +1,7 @@
 import unittest, os, sys, json, funbelts as ut
 
 sys.path.append('../')
-from carchive import carchive
+import carchive
 
 smpl = [
     'https://github.com/franceme/WaveNetExploration'
