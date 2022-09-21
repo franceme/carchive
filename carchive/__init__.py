@@ -49,7 +49,7 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_obj: ut.HuggingFace = None, exclude_extensions: list = None):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, huggingface_obj = None, exclude_extensions: list = None):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
