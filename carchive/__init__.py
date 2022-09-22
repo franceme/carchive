@@ -1,5 +1,8 @@
 import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests
-from ghapi.all import GhApi
+try:
+    from ghapi.all import GhApi
+except:
+    os.system(f"{sys.executable} -m pip install ghapi")
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 
 def live_link(url: str):
@@ -80,14 +83,26 @@ class GRepo(object):
             splitzies = self.url.replace('https://github.com/','').split('/')
             owner,corerepo = splitzies[0], splitzies[1]
 
+            branches = []
+            main_branch = None
             try:
-                self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref='heads/main')
-            except:
-                try:
-                    self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref='heads/master')
-                except:
-                    print("No master or main branch found")
-                    self.gh_api = None
+                #https://docs.github.com/en/rest/branches/branches#list-branches
+                for branch in requests.get(f"https://api.github.com/repos/{owner}/{corerepo}/branches").json():
+                    branches += [branch['name']]
+                    if branch['name'] in ['main','master'] and main_branch is None:
+                        main_branch = "heads/"+branch['name']
+            except Exception as e:
+                print(f"Error getting branches: {e}")
+                pass
+
+            if main_branch is None and len(branches) > 0:
+                main_branch = "heads/"+branches[0]
+
+            try:
+                self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref=main_branch)
+            except Exception as e:
+                self.gh_api = None
+                print(e)
             if self.gh_api is not None:
                 self.gh_api.owner = owner
                 self.gh_api.repo = corerepo
