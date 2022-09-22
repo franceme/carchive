@@ -196,16 +196,21 @@ class GRepo(object):
     def webarchive(self):
         save_url = "NotAvailable"
         url = self.zip_url
-        if live_link(url):
-            saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
+        try:
+            if live_link(url):
+                saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
 
-            try:
-                save_url = saver.save()
-                if save_url is None:
-                    save_url = saver.saved_archive
-            except Exception as e:
-                print(f"Issue with saving the link {url}: {e}")
-                save_url = "NotAvailable"
+                try:
+                    save_url = saver.save()
+                    if save_url is None:
+                        save_url = saver.saved_archive
+                except Exception as e:
+                    print(f"Issue with saving the link {url}: {e}")
+                    save_url = "NotAvailable"
+                    pass
+        except Exception as e:
+            print(f"Issue with saving the link {url}: {e}")
+            pass
         
         time.sleep(self.self_archive_wait)
         return save_url
@@ -233,8 +238,7 @@ class GRepo(object):
                 'FullUrl':self.full_url,
                 'CloneUrl':self.cloneurl,
                 'ZipUrl':self.zip_url,
-                'WebArchiveSaveUrl':self.webarchive_save_url,
-                'WebArchiveUrl':self.webarchive
+                'WebArchiveSaveUrl':self.webarchive_save_url
             }
 
     def is_bin_file(self,foil):
