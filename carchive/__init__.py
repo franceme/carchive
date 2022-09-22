@@ -178,19 +178,20 @@ class GRepo(object):
 
     @property
     def webarchive(self):
-        save_url = None
+        save_url = "NotAvailable"
         url = self.zip_url
         if live_link(url):
             saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
 
             try:
                 save_url = saver.save()
-                time.sleep(10)
                 if save_url is None:
                     save_url = saver.saved_archive
             except Exception as e:
                 print(f"Issue with saving the link {url}: {e}")
-                save_url = e
+                save_url = "NotAvailable"
+        
+        time.sleep(60 * 5)
         return save_url
     
     @property
