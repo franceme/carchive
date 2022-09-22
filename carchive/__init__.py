@@ -50,7 +50,7 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = []):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
@@ -58,6 +58,7 @@ class GRepo(object):
         self.jsonl_file = jsonl_file
         self.repo = repo
         self.exclude_extensions = exclude_extensions
+        self.self_archive_wait=self_archive_wait
 
         if local_dir:
             self.url = f"file://{self.repo}"
@@ -191,21 +192,35 @@ class GRepo(object):
                 print(f"Issue with saving the link {url}: {e}")
                 save_url = "NotAvailable"
         
-        time.sleep(60 * 5)
+        time.sleep(self.self_archive_wait)
         return save_url
     
     @property
     def info(self):
-        return {
-            'URL':self.url,
-            'RepoName':self.reponame,
-            'Commit':self.commit,
-            'FullUrl':self.full_url,
-            'CloneUrl':self.cloneurl,
-            'ZipUrl':self.zip_url,
-            'WebArchiveSaveUrl':self.webarchive_save_url,
-            'WebArchiveUrl':self.webarchive
-        }
+        try:
+            return {
+                'URL':self.url,
+                'RepoName':self.reponame,
+                'Commit':self.commit,
+                'FullUrl':self.full_url,
+                'CloneUrl':self.cloneurl,
+                'ZipUrl':self.zip_url,
+                'WebArchiveSaveUrl':self.webarchive_save_url,
+                'WebArchiveUrl':self.webarchive,
+                'GH_Commit':self.gh_api.commit_url,
+                'GH_Commit_SAVE':self.gh_api.commit_zip_url
+            }
+        except:
+            return {
+                'URL':self.url,
+                'RepoName':self.reponame,
+                'Commit':self.commit or self.gh_api.commit,
+                'FullUrl':self.full_url,
+                'CloneUrl':self.cloneurl,
+                'ZipUrl':self.zip_url,
+                'WebArchiveSaveUrl':self.webarchive_save_url,
+                'WebArchiveUrl':self.webarchive
+            }
 
     def is_bin_file(self,foil):
         #https://stackoverflow.com/questions/898669/how-can-i-detect-if-a-file-is-binary-non-text-in-python
