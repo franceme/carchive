@@ -123,6 +123,8 @@ class GRepo(object):
                     str(self.gh_api.commit)+".zip"
                 ])
 
+        if self.url.endswith("/"):
+            self.url = self.url[:-1]
         self.reponame = self.url.split('/')[-1].replace('.git','')
         self.webarchive_url_base = None
         self.zip_url_base = None
