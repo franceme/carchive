@@ -62,6 +62,7 @@ class GRepo(object):
         self.repo = repo
         self.exclude_extensions = exclude_extensions
         self.self_archive_wait=self_archive_wait
+        self.git_base_string = git_base_string
 
         if local_dir:
             self.url = f"file://{self.repo}"
@@ -71,7 +72,7 @@ class GRepo(object):
             repo = repo.replace('http://', 'https://').replace('.git','')
             self.url = repo
             self.full_url = repo
-            self.cloneurl = "{} clone {} --depth 1".format(git_base_string, '--' if 'gh' in git_base_string.lower() else '')
+            self.cloneurl = "--depth 1"
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
@@ -131,7 +132,7 @@ class GRepo(object):
         if not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
             print("Waiting between scanning projects to ensure GitHub Doesn't get angry")
             ut.wait_for(5)
-            ut.run(f"{self.cloneurl} {self.url}")
+            ut.run("{} clone {} {} {}".format(self.git_base_string,self.url,'--' if 'gh' in self.git_base_string.lower() else '',self.cloneurl))
 
             if ut.is_not_empty(self.commit):
                 ut.run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../")
