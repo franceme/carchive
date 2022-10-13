@@ -1,4 +1,4 @@
-import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests
+import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests, sys
 try:
     from ghapi.all import GhApi
 except:
@@ -220,21 +220,7 @@ class GRepo(object):
     
     @property
     def info(self):
-        try:
-            return {
-                'URL':self.url,
-                'RepoName':self.reponame,
-                'Commit':self.commit,
-                'FullUrl':self.full_url,
-                'CloneUrl':self.cloneurl,
-                'ZipUrl':self.zip_url,
-                'WebArchiveSaveUrl':self.webarchive_save_url,
-                'WebArchiveUrl':self.webarchive,
-                'GH_Commit':self.gh_api.commit_url,
-                'GH_Commit_SAVE':self.gh_api.commit_zip_url
-            }
-        except:
-            return {
+        return {
                 'URL':self.url,
                 'RepoName':self.reponame,
                 'Commit':self.commit or self.gh_api.commit,
@@ -252,9 +238,6 @@ class GRepo(object):
 
     @property
     def jsonl(self):
-        if os.path.exists(self.jsonl_file):
-            return self.jsonl_file
-
         try:
             with open(self.jsonl_file, 'w+') as writer:
                 writer.write(str(json.dumps({**{'header':True},**self.info})) + "\n")
