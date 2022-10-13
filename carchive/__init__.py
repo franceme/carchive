@@ -126,13 +126,15 @@ class GRepo(object):
         self.reponame = self.url.split('/')[-1].replace('.git','')
         self.webarchive_url_base = None
         self.zip_url_base = None
+        self.reponame = self.reponame or repo.split('/')[-1]
 
 
     def __clone(self):
         if not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
             print("Waiting between scanning projects to ensure GitHub Doesn't get angry")
             ut.wait_for(5)
-            ut.run("{} clone {} {} {}".format(self.git_base_string,self.url,'--' if 'gh' in self.git_base_string.lower() else '',self.cloneurl))
+            cmd = "{} clone {} {} {}".format(self.git_base_string,self.url,'--' if 'gh' in self.git_base_string.lower() else '',self.cloneurl)
+            print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
                 ut.run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../")
