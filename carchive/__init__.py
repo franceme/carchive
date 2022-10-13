@@ -246,6 +246,7 @@ class GRepo(object):
                 self.__clone()
                 for root, directories, filenames in os.walk(self.reponame):
                     for filename in filenames:
+                            print(filename)
                             foil = os.path.join(root, filename)
                             ext = foil.split('.')[-1].lower()
 
