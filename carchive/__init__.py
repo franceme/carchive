@@ -53,7 +53,7 @@ class GRepo(object):
     with GRepo("https://github.com/owner/repo","v1","hash") as repo:
         os.path.exists(repo.reponame) #TRUE
     """
-    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60):
+    def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60, git_base_string="git"):
         self.delete = delete
         self.tag = None
         self.commit = commit or None
@@ -71,7 +71,7 @@ class GRepo(object):
             repo = repo.replace('http://', 'https://').replace('.git','')
             self.url = repo
             self.full_url = repo
-            self.cloneurl = "git clone --depth 1"
+            self.cloneurl = "{} clone --depth 1".format(git_base_string)
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
