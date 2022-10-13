@@ -71,7 +71,7 @@ class GRepo(object):
             repo = repo.replace('http://', 'https://').replace('.git','')
             self.url = repo
             self.full_url = repo
-            self.cloneurl = "{} clone --depth 1".format(git_base_string)
+            self.cloneurl = "{} clone {} --depth 1".format(git_base_string, '--' if 'gh' in git_base_string.lower() else '')
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
