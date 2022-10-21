@@ -137,7 +137,7 @@ class GRepo(object):
         if not self.cloned: #not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
             print("Waiting between scanning projects to ensure GitHub Doesn't get angry")
             ut.wait_for(5)
-            cmd = "{} clone {} {} {}".format(self.git_base_string,self.url,'--' if 'gh' in self.git_base_string.lower() else '',self.cloneurl)
+            cmd = "{} clone {}".format(self.git_base_string,self.url)#,'--' if 'gh' in self.git_base_string.lower() else '',self.cloneurl)
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
