@@ -140,7 +140,8 @@ class GRepo(object):
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
-                ut.run(f"cd {self.reponame} && git reset --hard {self.commit} && cd ../")
+                cmd = f"cd {self.reponame} && git reset --hard {self.commit} && cd ../"
+                print(cmd);ut.run(cmd)
             self.cloned = True
 
     def __enter__(self):
