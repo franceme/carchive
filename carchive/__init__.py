@@ -144,7 +144,7 @@ class GRepo(object):
                 os.chdir(self.reponame)
                 #cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
                 print(os.path.abspath(os.curdir))
-                cmd = f"pwd && git checkout {self.commit}"
+                cmd = f"git checkout {self.commit}"
                 print(cmd);ut.run(cmd)
                 os.chdir(self.inipath)
             self.cloned = True
@@ -154,12 +154,13 @@ class GRepo(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            if self.delete:
-                print("Deleting the file")
-                ut.run(f"yes|rm -r {self.reponame}")
-        except Exception as e:
-            print(f"Issue with deleting the file: {e}")
+        if False:
+            try:
+                if self.delete:
+                    print("Deleting the file")
+                    ut.run(f"yes|rm -r {self.reponame}")
+            except Exception as e:
+                print(f"Issue with deleting the file: {e}")
         return self
 
     @property
