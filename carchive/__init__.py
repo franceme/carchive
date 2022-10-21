@@ -64,13 +64,16 @@ class GRepo(object):
         self.exclude_extensions = exclude_extensions
         self.self_archive_wait=self_archive_wait
         self.git_base_string = git_base_string
+        self.local_dir = None
 
         if local_dir:
             self.url = f"file://{self.repo}"
             self.full_url = repo
             self.api = None
+            self.local_dir = local_dir
         else:
             repo = repo.replace('http://', 'https://').replace('.git','')
+            self.local_dir = str(repo.split("/")[-1])
             self.url = repo
             self.full_url = repo
             #self.cloneurl = "--depth 1"
