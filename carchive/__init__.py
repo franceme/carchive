@@ -73,6 +73,8 @@ class GRepo(object):
             self.local_dir = local_dir
         else:
             repo = repo.replace('http://', 'https://').replace('.git','')
+            if repo.endswith("/"):
+                repo = repo[:-1]
             self.local_dir = str(repo.split("/")[-1])
             self.url = repo
             self.full_url = repo
