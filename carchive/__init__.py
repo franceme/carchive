@@ -54,6 +54,7 @@ class GRepo(object):
         os.path.exists(repo.reponame) #TRUE
     """
     def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60, git_base_string="git"):
+        self.inipath = os.path.abspath(os.curdir)
         self.delete = delete
         self.tag = None
         self.commit = commit or None
@@ -140,8 +141,11 @@ class GRepo(object):
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
-                cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
+                os.chdir(self.reponame)
+                #cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
+                cmd = f"pwd && git checkout {self.commit}"
                 print(cmd);ut.run(cmd)
+                os.chdir(self.inipath)
             self.cloned = True
 
     def __enter__(self):
