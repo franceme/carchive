@@ -73,7 +73,7 @@ class GRepo(object):
             repo = repo.replace('http://', 'https://').replace('.git','')
             self.url = repo
             self.full_url = repo
-            self.cloneurl = "--depth 1"
+            #self.cloneurl = "--depth 1"
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
@@ -141,12 +141,12 @@ class GRepo(object):
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
-                os.chdir(self.reponame)
-                #cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
-                print(os.path.abspath(os.curdir))
+                #os.chdir(self.reponame)
+                cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
+                #print(os.path.abspath(os.curdir))
                 cmd = f"git checkout {self.commit}"
                 print(cmd);ut.run(cmd)
-                os.chdir(self.inipath)
+                #os.chdir(self.inipath)
             self.cloned = True
 
     def __enter__(self):
@@ -154,13 +154,12 @@ class GRepo(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if False:
-            try:
-                if self.delete:
-                    print("Deleting the file")
-                    ut.run(f"yes|rm -r {self.reponame}")
-            except Exception as e:
-                print(f"Issue with deleting the file: {e}")
+        try:
+            if self.delete:
+                print("Deleting the file")
+                ut.run(f"yes|rm -r {self.reponame}")
+        except Exception as e:
+            print(f"Issue with deleting the file: {e}")
         return self
 
     @property
