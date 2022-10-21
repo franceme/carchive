@@ -141,12 +141,12 @@ class GRepo(object):
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
-                #os.chdir(self.reponame)
-                cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
-                #print(os.path.abspath(os.curdir))
+                os.chdir(self.reponame)
+                #cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
+                print(os.path.abspath(os.curdir))
                 cmd = f"git checkout {self.commit}"
                 print(cmd);ut.run(cmd)
-                #os.chdir(self.inipath)
+                os.chdir(self.inipath)
             self.cloned = True
 
     def __enter__(self):
