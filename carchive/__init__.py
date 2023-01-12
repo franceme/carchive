@@ -282,3 +282,40 @@ class GRepo(object):
             print(f"Issue with creating the jsonl file: {e}")
 
         return self.jsonl_file
+
+    @property
+    def jsonl_contents(self):
+        contents = []
+        try:
+            self.__clone()
+            for root, directories, filenames in os.walk(self.reponame):
+                for filename in filenames:
+                    foil = os.path.join(root, filename)
+                    ext = foil.split('.')[-1].lower()
+
+                    if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
+                        try:
+                            try:
+                                mini = file_to_base_64(foil)
+                            except:
+                                mini = None
+
+
+                            current_file_info = {
+                                'header':False,
+                                'file':foil,
+                                'hash':hash(foil),
+                                'base64':mini
+                            }
+
+                            contents += [
+                                str(json.dumps(current_file_info))
+                            ]
+
+                        except Exception as e:
+                            print(">: "+str(e))
+                            pass
+        except Exception as e:
+            print(f"Issue with creating the jsonl file: {e}")
+
+        return []
