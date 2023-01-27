@@ -318,4 +318,4 @@ class GRepo(object):
         except Exception as e:
             print(f"Issue with creating the jsonl file: {e}")
 
-        return []
+        return contents
