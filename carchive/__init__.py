@@ -1,4 +1,4 @@
-import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests, sys
+import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests, sys, datetime
 try:
     from ghapi.all import GhApi
 except:
@@ -46,6 +46,13 @@ def base_64_to_file(contents,file=None):
         return 'true'
     else:
         return string_contents
+
+def get_date_from_repo_commit(repo, commit):    
+    return get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo,commit))
+    
+def get_date_from_commit_url(url):
+    req = requests.get(url).json()
+    return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
 
 class GRepo(object):
     """
