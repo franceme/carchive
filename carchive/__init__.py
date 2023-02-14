@@ -54,6 +54,150 @@ def get_date_from_commit_url(url):
     req = requests.get(url).json()
     return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
 
+class githuburl(object):
+  def __init__(self,token=None,verify=True,wait_lambda=None,logging_lambda=None):
+    self.token = token
+    self.verify=verify
+    self.remaining = None
+    self.total = None
+    self.wait_until = None
+    self.wait_lambda = wait_lambda
+    self.logging_lambda = logging_lambda
+    if self.logging_lambda is None:
+      def temp(*args, **kargs):
+        return 
+      self.logging_lambda = temp
+
+    self.timing
+
+  def __call__(self,url,verify=True, return_error=False, json=True, baserun=False):
+      self.logging_lambda(func="Call", step="Start", message="URL:> {}".format(url))
+      if not baserun:
+        self.timing
+
+      output = {}
+      headers = {}
+
+      if self.token is not None:
+        headers['Authorization'] = 'Bearer {}'.format(self.token)
+
+      try:
+          output['data'] = requests.get(url, verify=verify and self.verify, headers=headers)
+          if json:
+              self.logging_lambda(func="Call", step="Success")
+              output['data'] = output['data'].json()
+      except Exception as e:
+          if return_error:
+              output["Error"] = e
+          output['data'] = None
+          self.logging_lambda(func="Call", step="Failure", message=e)
+
+      return output
+
+  @property
+  def status(self):
+    self.logging_lambda(func="Status", step="Start")                                                                                              
+    # curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
+    cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
+    self.logging_lambda(func="Status", step="Completed", message=cur_status)
+    return {
+      'Reset': cur_status['X-RateLimit-Reset'],
+      'Used': cur_status['X-RateLimit-Used'],
+      'Total': cur_status['X-RateLimit-Limit'],
+      'Remaining': cur_status['X-RateLimit-Remaining'],
+      'RemainingDate':datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])),
+      'WaitFor':datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - now,
+      'WaitForSec':(datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - now).seconds,
+      'WaitForNow':lambda :(datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - datetime.datetime.now()).seconds,
+    }
+
+  @property
+  def timing(self):
+    if self.remaining is None:
+      stats = self.status
+      print(stats)
+      self.remaining = int(stats['Remaining'])
+      self.total = int(stats['Total'])
+      self.wait_until = stats['WaitForNow']
+    elif self.remaining >= 10:
+      self.remaining = self.remaining - 1
+    else: #if self.remaining == 0:
+      if self.wait_lambda is not None:
+        self.wait_lambda(self.wait_until())
+      else:
+        time_to_sleep=self.wait_until()
+        for itr in range(time_to_sleep):
+          print("{}/{}".format(itr,time_to_sleep))
+          time.sleep(1)
+      self.remaining = None
+      self.timing
+
+
+def set_gh_token(token):
+    os.environ['GH_TOKEN'] = token
+    try:
+        with open("~/.bashrc","a+") as writer:
+            writer.write("GH_TOKEN={0}".format(token))
+    except: pass
+
+def find(repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False):
+	if asset_check is None:
+		asset_check = lambda x:False
+
+	def req(string, verify=verify, accept=accept, auth=auth, print_info=print_info):
+		try:
+			output = requests.get(string, verify=verify, headers={
+				"Accept": accept,
+				"Authorization":"Bearer {}".format(auth)
+			})
+			if print_info:
+				print(output)
+			return output.json()
+		except Exception as e:
+			if print_info:
+				print(e)
+			pass
+
+	latest_version = req("https://api.github.com/repos/{}/releases/latest".format(repo))
+	release_information = req(latest_version['url'])
+	for asset in release_information['assets']:
+		print(asset['name'])
+		print(asset_check(asset['name']))
+		if asset_check(asset['name']):
+			return asset #['browser_download_url']
+
+	return None
+
+def download(url, save_path, chunk_size=128, verify=True, accept="application/vnd.github+json", auth=None):
+    r = requests.get(url, stream=True, verify=verify, headers={
+		"Accept": accept,
+		"Authorization":"Bearer {}".format(auth)
+	})
+    with open(save_path, 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            fd.write(chunk)
+    return save_path
+
+def newdown(url, save_path, verify=True, accept="application/vnd.github+json", auth=None):
+	response = requests.get(url, headers={
+		"Accept": accept,
+		"Authorization":"Bearer {}".format(auth)
+	}, timeout=50, verify=verify)
+	if response.status_code == 200:
+		with open(save_path, 'wb') as f:
+		   f.write(response.content)
+		return save_path
+	else:
+		print(response.content)
+	return None
+
+def pull(repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False, save_path=None, chunk_size=128):
+	download_url = find(repo,asset_check,verify, accept, auth, print_info)
+	if download_url:
+		print(download_url)
+		return newdown(download_url['url'], save_path, verify, accept, auth )#, save_path, chunk_size, verify, accept, auth)
+	return None
+
 class GRepo(object):
     """
     Sample usage:
