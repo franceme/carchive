@@ -47,12 +47,22 @@ def base_64_to_file(contents,file=None):
     else:
         return string_contents
 
-def get_date_from_repo_commit(repo, commit):    
-    return get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo,commit))
+def get_date_from_repo_commit(repo, commit,headers={}):    
+    return get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo,commit,headers))
     
-def get_date_from_commit_url(url):
-    req = requests.get(url).json()
+def get_date_from_commit_url(url,headers={}):
+    req = requests.get(url,headers=headers).json()
     return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
+
+def get_commits_of_repo(repo,from_date=None,to_date=None,headers={}):
+    params = []
+    if from_date:
+        params += ["since={0}".format(from_date)]
+    if from_date:
+        params += ["until={0}".format(to_date)]
+    request_url = "https://api.github.com/repos/{0}/commits?{1}".format(repo, '&'.join(params))
+    req = requests.get(request_url, headers=headers)
+    return req.json()
 
 class githuburl(object):
   def __init__(self,token=None,verify=True,wait_lambda=None,logging_lambda=None):
