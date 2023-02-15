@@ -64,10 +64,16 @@ def get_commits_of_repo(repo,from_date=None,to_date=None,headers={}):
     req = requests.get(request_url, headers=headers)
     return req.json()
 
+#https://github.com/franceme/CryptoGuard4Py/blob/master/pysrc/rules/rule_source.py#L82
+#https://github.com/franceme/CryptoGuard4Py/blob/3a2731976aa5c4c3b582854f010fd21312141a27/pysrc/rules/rule_source.py#L82
+
+#https://github.com/66ru/payback/blob/e82a0d2e200566a744ff6dfdfbe71b4aceb04b86/payback/gateauth/models#L14.0
+#https://github.com/66ru/payback/blob/e82a0d2e200566a744ff6dfdfbe71b4aceb04b86/gateauth/models.py#L14
 def filewebinfo(repo, filepath, lineno=None,commit='master'):
-    baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo,commit,filepath)
+    owner,reponame = repo.split('/')
+    baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo,commit,filepath.replace(str(reponame)+"/",'',1))
     if lineno:
-        baseurl += "#L{0}".format(lineno)
+        baseurl += "#L{0}".format(int(lineno))
     
     return baseurl
 
