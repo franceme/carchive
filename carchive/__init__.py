@@ -64,6 +64,15 @@ def get_commits_of_repo(repo,from_date=None,to_date=None,headers={}):
     req = requests.get(request_url, headers=headers)
     return req.json()
 
+https://github.com/franceme/CryptoGuard4Py/blob/master/pysrc/rules/rule_source.py#L82
+https://github.com/franceme/CryptoGuard4Py/blob/3a2731976aa5c4c3b582854f010fd21312141a27/pysrc/rules/rule_source.py#L82
+def filewebinfo(repo, filepath, lineno=None,commit='master'):
+    baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo,commit,filepath)
+    if lineno:
+        baseurl += "#L{0}".format(lineno)
+    
+    return baseurl
+
 class githuburl(object):
   def __init__(self,token=None,verify=True,wait_lambda=None,logging_lambda=None):
     self.token = token
