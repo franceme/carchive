@@ -1,9 +1,19 @@
 import os, requests, json, base64, hashlib, time, contextlib, funbelts as ut, requests, sys, datetime
 try:
     from ghapi.all import GhApi
+    import mystring
 except:
-    os.system(f"{sys.executable} -m pip install ghapi")
+    os.system(f"{sys.executable} -m pip install --upgrade ghapi mystring")
+    from ghapi.all import GhApi
+    import mystring
 from waybackpy import WaybackMachineSaveAPI as checkpoint
+
+def set_gh_token(token):
+    os.environ['GH_TOKEN'] = token
+    try:
+        with open("~/.bashrc","a+") as writer:
+            writer.write("GH_TOKEN={0}".format(token))
+    except: pass
 
 def live_link(url: str):
     response = False
@@ -73,23 +83,16 @@ def filewebinfo(repo, filepath, lineno=None,commit='master'):
     return baseurl
 
 class githuburl(object):
-  def __init__(self,token=None,verify=True,wait_lambda=None,logging_lambda=None):
+  def __init__(self,token=None,verify=True,wait_lambda=None):
     self.token = token
     self.verify=verify
     self.remaining = None
     self.total = None
     self.wait_until = None
     self.wait_lambda = wait_lambda
-    self.logging_lambda = logging_lambda
-    if self.logging_lambda is None:
-      def temp(*args, **kargs):
-        return 
-      self.logging_lambda = temp
-
     self.timing
 
   def __call__(self,url,verify=True, return_error=False, json=True, baserun=False):
-      self.logging_lambda(func="Call", step="Start", message="URL:> {}".format(url))
       if not baserun:
         self.timing
 
@@ -102,22 +105,18 @@ class githuburl(object):
       try:
           output['data'] = requests.get(url, verify=verify and self.verify, headers=headers)
           if json:
-              self.logging_lambda(func="Call", step="Success")
               output['data'] = output['data'].json()
       except Exception as e:
           if return_error:
               output["Error"] = e
           output['data'] = None
-          self.logging_lambda(func="Call", step="Failure", message=e)
 
       return output
 
   @property
-  def status(self):
-    self.logging_lambda(func="Status", step="Start")                                                                                              
+  def status(self):                                                                                      
     # curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
     cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
-    self.logging_lambda(func="Status", step="Completed", message=cur_status)
     return {
       'Reset': cur_status['X-RateLimit-Reset'],
       'Used': cur_status['X-RateLimit-Used'],
@@ -149,14 +148,6 @@ class githuburl(object):
           time.sleep(1)
       self.remaining = None
       self.timing
-
-
-def set_gh_token(token):
-    os.environ['GH_TOKEN'] = token
-    try:
-        with open("~/.bashrc","a+") as writer:
-            writer.write("GH_TOKEN={0}".format(token))
-    except: pass
 
 def find(repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False):
 	if asset_check is None:
@@ -225,29 +216,32 @@ class GRepo(object):
     def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60, git_base_string="git"):
         self.inipath = os.path.abspath(os.curdir)
         self.delete = delete
-        self.tag = None
-        self.commit = commit or None
-        self.cloneurl = None
         self.jsonl_file = jsonl_file
         self.repo = repo
         self.exclude_extensions = exclude_extensions
         self.self_archive_wait=self_archive_wait
         self.git_base_string = git_base_string
+        self.tag = mystring.string(tag)
+        self.commit = mystring.string(commit).trim
+
         self.local_dir = None
+        self.cloneurl = None
+        self.gh_api = None
 
         if local_dir:
             self.url = f"file://{self.repo}"
             self.full_url = repo
-            self.api = None
             self.local_dir = local_dir
+            self.api = None
         else:
             repo = repo.replace('http://', 'https://').replace('.git','')
             if repo.endswith("/"):
                 repo = repo[:-1]
-            self.local_dir = str(repo.split("/")[-1])
+
             self.url = repo
             self.full_url = repo
-            #self.cloneurl = "--depth 1"
+            self.local_dir = str(repo.split("/")[-1])
+
             if ut.is_not_empty(tag):
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
@@ -259,26 +253,20 @@ class GRepo(object):
             splitzies = self.url.replace('https://github.com/','').split('/')
             owner,corerepo = splitzies[0], splitzies[1]
 
-            branches = []
-            main_branch = None
-            try:
+            branches, main_branch = [], None
+            with contextlib.suppress(Exception):
                 #https://docs.github.com/en/rest/branches/branches#list-branches
                 for branch in requests.get(f"https://api.github.com/repos/{owner}/{corerepo}/branches").json():
                     branches += [branch['name']]
-                    if branch['name'] in ['main','master'] and main_branch is None:
+                    if branch['name'].lower() in ['main','master'] and main_branch is None:
                         main_branch = "heads/"+branch['name']
-            except Exception as e:
-                print(f"Error getting branches: {e}")
-                pass
-
             if main_branch is None and len(branches) > 0:
                 main_branch = "heads/"+branches[0]
 
-            try:
+
+            with contextlib.suppress(Exception):
                 self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref=main_branch)
-            except Exception as e:
-                self.gh_api = None
-                print(e)
+
             if self.gh_api is not None:
                 self.gh_api.owner = owner
                 self.gh_api.repo = corerepo
@@ -300,6 +288,7 @@ class GRepo(object):
 
         if self.url.endswith("/"):
             self.url = self.url[:-1]
+
         self.reponame = self.url.split('/')[-1].replace('.git','')
         self.webarchive_url_base = None
         self.zip_url_base = None
@@ -315,12 +304,10 @@ class GRepo(object):
             print(cmd);ut.run(cmd)
 
             if ut.is_not_empty(self.commit):
-                os.chdir(self.reponame)
-                #cmd = f"cd {self.reponame} && git checkout {self.commit} && cd ../"
-                print(os.path.abspath(os.curdir))
-                cmd = f"git checkout {self.commit}"
-                print(cmd);ut.run(cmd)
-                os.chdir(self.inipath)
+                with mystring.foldentre()(self.reponame):
+                    print(os.path.abspath(os.curdir))
+                    cmd = f"git checkout {self.commit}"
+                    print(cmd);ut.run(cmd)
             self.cloned = True
 
     def __enter__(self):
@@ -414,12 +401,6 @@ class GRepo(object):
                 'WebArchiveSaveUrl':self.webarchive_save_url
             }
 
-    def is_bin_file(self,foil):
-        #https://stackoverflow.com/questions/898669/how-can-i-detect-if-a-file-is-binary-non-text-in-python
-        textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
-        is_binary_string = lambda bytes: bool(bytes.translate(None, textchars))
-        return is_binary_string(open(foil, 'rb').read(1024))
-
     @property
     def jsonl(self):
         try:
@@ -433,17 +414,7 @@ class GRepo(object):
 
                             if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
                                 try:
-                                    try:
-                                        mini = file_to_base_64(foil)
-                                    except:
-                                        mini = None
-                                    current_file_info = {
-                                        'header':False,
-                                        'file':foil,
-                                        'hash':hash(foil),
-                                        'base64':mini
-                                    }
-                                    writer.write(str(json.dumps(current_file_info)) + "\n")
+                                    writer.write(mystring.foil(foil).structured()+ "\n")
                                 except Exception as e:
                                     print(">: "+str(e))
                                     pass
@@ -464,23 +435,9 @@ class GRepo(object):
 
                     if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
                         try:
-                            try:
-                                mini = file_to_base_64(foil)
-                            except:
-                                mini = None
-
-
-                            current_file_info = {
-                                'header':False,
-                                'file':foil,
-                                'hash':hash(foil),
-                                'base64':mini
-                            }
-
                             contents += [
-                                str(json.dumps(current_file_info))
+                                mystring.foil(foil).structured()
                             ]
-
                         except Exception as e:
                             print(">: "+str(e))
                             pass
