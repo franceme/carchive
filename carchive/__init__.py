@@ -9,37 +9,10 @@ except:
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 from utils import live_link
 
-def set_gh_token(token):
-	os.environ['GH_TOKEN'] = token
-	try:
-		with open("~/.bashrc","a+") as writer:
-			writer.write("GH_TOKEN={0}".format(token))
-	except: pass
-
-def get_date_from_repo_commit(repo, commit,headers={}):
-	return get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo,commit,headers))
-
-def get_date_from_commit_url(url,headers={}):
-	req = requests.get(url,headers=headers).json()
-	return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
-
-def get_commits_of_repo(repo,from_date=None,to_date=None,headers={}):
-	params = []
-	if from_date:
-		params += ["since={0}".format(from_date)]
-	if from_date:
-		params += ["until={0}".format(to_date)]
-	request_url = "https://api.github.com/repos/{0}/commits?{1}".format(repo, '&'.join(params))
-	req = requests.get(request_url, headers=headers)
-	return req.json()
-
-def filewebinfo(repo, filepath, lineno=None,commit='master'):
-	owner,reponame = repo.split('/')
-	baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo,commit,filepath.replace(str(reponame)+"/",'',1))
-	if lineno:
-		baseurl += "#L{0}".format(int(lineno))
-
-	return baseurl
+"""
+https://pypi.org/project/python-crontab/
+https://pypi.org/project/python-cron/
+"""
 
 class githuburl(object):
 	def __init__(self,token=None,verify=True,wait_lambda=None):
@@ -49,7 +22,6 @@ class githuburl(object):
 		self.total = None
 		self.wait_until = None
 		self.wait_lambda = wait_lambda
-		self.timing
 
 	def __call__(self,url,verify=True, return_error=False, json=True, baserun=False):
 		if not baserun:
@@ -108,63 +80,63 @@ class githuburl(object):
 					time.sleep(1)
 			self.remaining = None
 
-def find(repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False):
-	if asset_check is None:
-		asset_check = lambda x:False
+	def find(self, repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False):
+		if asset_check is None:
+			asset_check = lambda x:False
 
-	def req(string, verify=verify, accept=accept, auth=auth, print_info=print_info):
-		try:
-			output = requests.get(string, verify=verify, headers={
-				"Accept": accept,
-				"Authorization":"Bearer {}".format(auth)
-			})
-			if print_info:
-				print(output)
-			return output.json()
-		except Exception as e:
-			if print_info:
-				print(e)
-			pass
+		def req(string, verify=verify, accept=accept, auth=auth, print_info=print_info):
+			try:
+				output = requests.get(string, verify=verify, headers={
+					"Accept": accept,
+					"Authorization":"Bearer {}".format(auth)
+				})
+				if print_info:
+					print(output)
+				return output.json()
+			except Exception as e:
+				if print_info:
+					print(e)
+				pass
 
-	latest_version = req("https://api.github.com/repos/{}/releases/latest".format(repo))
-	release_information = req(latest_version['url'])
-	for asset in release_information['assets']:
-		print(asset['name'])
-		print(asset_check(asset['name']))
-		if asset_check(asset['name']):
-			return asset #['browser_download_url']
+		latest_version = req("https://api.github.com/repos/{}/releases/latest".format(repo))
+		release_information = req(latest_version['url'])
+		for asset in release_information['assets']:
+			print(asset['name'])
+			print(asset_check(asset['name']))
+			if asset_check(asset['name']):
+				return asset #['browser_download_url']
 
-	return None
+		return None
 
-def download(url, save_path, chunk_size=128, verify=True, accept="application/vnd.github+json", auth=None):
-	r = requests.get(url, stream=True, verify=verify, headers={
-		"Accept": accept,
-		"Authorization":"Bearer {}".format(auth)
-	})
-	with open(save_path, 'wb') as fd:
-		for chunk in r.iter_content(chunk_size=chunk_size):
-			fd.write(chunk)
-	return save_path
-
-def newdown(url, save_path, verify=True, accept="application/vnd.github+json", auth=None):
-	response = requests.get(url, headers={
-		"Accept": accept,
-		"Authorization":"Bearer {}".format(auth)
-	}, timeout=50, verify=verify)
-	if response.status_code == 200:
-		with open(save_path, 'wb') as f:
-			f.write(response.content)
+	def download(self, url, save_path, chunk_size=128, verify=True, accept="application/vnd.github+json", auth=None):
+		r = requests.get(url, stream=True, verify=verify, headers={
+			"Accept": accept,
+			"Authorization":"Bearer {}".format(auth)
+		})
+		with open(save_path, 'wb') as fd:
+			for chunk in r.iter_content(chunk_size=chunk_size):
+				fd.write(chunk)
 		return save_path
-	else:
-		print(response.content)
-	return None
 
-def pull(repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False, save_path=None, chunk_size=128):
-	download_url = find(repo,asset_check,verify, accept, auth, print_info)
-	if download_url:
-		print(download_url)
-		return newdown(download_url['url'], save_path, verify, accept, auth )#, save_path, chunk_size, verify, accept, auth)
-	return None
+	def newdown(self, url, save_path, verify=True, accept="application/vnd.github+json", auth=None):
+		response = requests.get(url, headers={
+			"Accept": accept,
+			"Authorization":"Bearer {}".format(auth)
+		}, timeout=50, verify=verify)
+		if response.status_code == 200:
+			with open(save_path, 'wb') as f:
+				f.write(response.content)
+			return save_path
+		else:
+			print(response.content)
+		return None
+
+	def pull(self, repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False, save_path=None, chunk_size=128):
+		download_url = self.find(repo,asset_check,verify, accept, auth, print_info)
+		if download_url:
+			print(download_url)
+			return self.newdown(download_url['url'], save_path, verify, accept, auth )#, save_path, chunk_size, verify, accept, auth)
+		return None
 
 class GRepo(object):
 	"""
@@ -254,6 +226,39 @@ class GRepo(object):
 		self.reponame = self.reponame or repo.split('/')[-1]
 		self.cloned = False
 
+	def set_gh_token(self, token):
+		os.environ['GH_TOKEN'] = token
+		try:
+			with open("~/.bashrc", "a+") as writer:
+				writer.write("GH_TOKEN={0}".format(token))
+		except:
+			pass
+
+	def get_date_from_repo_commit(self, repo, commit, headers={}):
+		return self.get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo, commit, headers))
+
+	def get_date_from_commit_url(self, url, headers={}):
+		req = requests.get(url, headers=headers).json()
+		return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
+
+	def get_commits_of_repo(self, repo, from_date=None, to_date=None, headers={}):
+		params = []
+		if from_date:
+			params += ["since={0}".format(from_date)]
+		if from_date:
+			params += ["until={0}".format(to_date)]
+		request_url = "https://api.github.com/repos/{0}/commits?{1}".format(repo, '&'.join(params))
+		req = requests.get(request_url, headers=headers)
+		return req.json()
+
+	def filewebinfo(self, repo, filepath, lineno=None, commit='master'):
+		owner, reponame = repo.split('/')
+		baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo, commit,
+															   filepath.replace(str(reponame) + "/", '', 1))
+		if lineno:
+			baseurl += "#L{0}".format(int(lineno))
+
+		return baseurl
 
 	def __clone(self):
 		if not self.cloned: #not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
@@ -325,6 +330,7 @@ class GRepo(object):
 
 	@property
 	def webarchive(self):
+		import time
 		save_url = "NotAvailable"
 		url = self.zip_url
 		try:
