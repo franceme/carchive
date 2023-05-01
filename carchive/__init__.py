@@ -15,15 +15,15 @@ https://pypi.org/project/python-cron/
 """
 
 class githuburl(object):
-	def __init__(self,token=None,verify=True,wait_lambda=None):
+	def __init__(self,url,token=None,verify=True):
+		self.url = url
 		self.token = token
-		self.verify=verify
+		self.verify = verify
 		self.remaining = None
 		self.total = None
 		self.wait_until = None
-		self.wait_lambda = wait_lambda
 
-	def __call__(self,url,verify=True, return_error=False, json=True, baserun=False):
+	def __call__(self,return_error=False, json=True, baserun=False):
 		if not baserun:
 			self.timing
 
@@ -34,7 +34,7 @@ class githuburl(object):
 			headers['Authorization'] = 'Bearer {}'.format(self.token)
 
 		try:
-			output['data'] = requests.get(url, verify=verify and self.verify, headers=headers)
+			output['data'] = requests.get(self.url, verify=self.verify and self.verify, headers=headers)
 			if json:
 				output['data'] = output['data'].json()
 		except Exception as e:
@@ -71,20 +71,17 @@ class githuburl(object):
 		elif self.remaining >= 10:
 			self.remaining = self.remaining - 1
 		else: #if self.remaining == 0:
-			if self.wait_lambda is not None:
-				self.wait_lambda(self.wait_until())
-			else:
-				time_to_sleep=self.wait_until()
-				for itr in range(time_to_sleep):
-					print("{}/{}".format(itr,time_to_sleep))
-					time.sleep(1)
+			time_to_sleep = self.wait_until
+			for itr in range(time_to_sleep):
+				print("{}/{}".format(itr,time_to_sleep))
+				time.sleep(1)
 			self.remaining = None
 
-	def find(self, repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False):
+	def find(self, repo,asset_check=None, accept="application/vnd.github+json", print_info=False):
 		if asset_check is None:
 			asset_check = lambda x:False
 
-		def req(string, verify=verify, accept=accept, auth=auth, print_info=print_info):
+		def req(string, verify=self.verify, accept=accept, auth=self.token, print_info=print_info):
 			try:
 				output = requests.get(string, verify=verify, headers={
 					"Accept": accept,
@@ -98,6 +95,7 @@ class githuburl(object):
 					print(e)
 				pass
 
+		// -> look into common converting github url to repo
 		latest_version = req("https://api.github.com/repos/{}/releases/latest".format(repo))
 		release_information = req(latest_version['url'])
 		for asset in release_information['assets']:
@@ -105,24 +103,23 @@ class githuburl(object):
 			print(asset_check(asset['name']))
 			if asset_check(asset['name']):
 				return asset #['browser_download_url']
-
 		return None
 
-	def download(self, url, save_path, chunk_size=128, verify=True, accept="application/vnd.github+json", auth=None):
-		r = requests.get(url, stream=True, verify=verify, headers={
+	def download(self, url, save_path, chunk_size=128, accept="application/vnd.github+json"):
+		r = requests.get(url, stream=True, verify=self.verify, headers={
 			"Accept": accept,
-			"Authorization":"Bearer {}".format(auth)
+			"Authorization":"Bearer {}".format(self.token)
 		})
 		with open(save_path, 'wb') as fd:
 			for chunk in r.iter_content(chunk_size=chunk_size):
 				fd.write(chunk)
 		return save_path
 
-	def newdown(self, url, save_path, verify=True, accept="application/vnd.github+json", auth=None):
+	def newdown(self, url, save_path, accept="application/vnd.github+json"):
 		response = requests.get(url, headers={
 			"Accept": accept,
-			"Authorization":"Bearer {}".format(auth)
-		}, timeout=50, verify=verify)
+			"Authorization":"Bearer {}".format(self.token)
+		}, timeout=50, verify=self.verify)
 		if response.status_code == 200:
 			with open(save_path, 'wb') as f:
 				f.write(response.content)
@@ -131,11 +128,11 @@ class githuburl(object):
 			print(response.content)
 		return None
 
-	def pull(self, repo,asset_check=None,verify=True, accept="application/vnd.github+json", auth=None, print_info=False, save_path=None, chunk_size=128):
-		download_url = self.find(repo,asset_check,verify, accept, auth, print_info)
+	def pull(self, repo,asset_check=None, accept="application/vnd.github+json", print_info=False, save_path=None, chunk_size=128):
+		download_url = self.find(repo,asset_check, accept, print_info)
 		if download_url:
 			print(download_url)
-			return self.newdown(download_url['url'], save_path, verify, accept, auth )#, save_path, chunk_size, verify, accept, auth)
+			return self.newdown(download_url['url'], save_path, accept)#, save_path, chunk_size, verify, accept, auth)
 		return None
 
 class GRepo(object):
