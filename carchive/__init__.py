@@ -242,11 +242,11 @@ class GRepo(object):
             self.full_url = repo
             self.local_dir = str(repo.split("/")[-1])
 
-            if ut.is_not_empty(tag):
+            if not mystring.string(tag).empty:
                 self.tag = tag
                 self.cloneurl += f" --branch {tag}"
                 self.full_url += f"<b>{tag}"
-            if ut.is_not_empty(self.commit):
+            if not mystring.string(self.commit).empty:
                 self.full_url += f"<#>{self.commit}"
 
             gh_api = GhApi()
@@ -338,21 +338,21 @@ class GRepo(object):
 
         # url_builder = "https://web.archive.org/save/" + repo.url + "/archive"
         url_builder = self.url + "/archive"
-        if ut.is_not_empty(self.commit):
+        if not mystring.string(self.commit).empty:
             # https://github.com/owner/reponame/archive/hash.zip
             url_builder += f"/{self.commit}.zip"
 
-        if not ut.is_not_empty(self.commit):
+        if not mystring.string(self.commit).empty:
             # https://web.archive.org/save/https://github.com/owner/reponame/archive/refs/heads/tag.zip
             url_builder += f"/refs/heads"
-            if not ut.is_not_empty(self.tag):
+            if not mystring.string(self.tag).empty:
                 for base_branch in ['master', 'main']:
                     temp_url = url_builder + f"/{base_branch}.zip"
                     if live_link(temp_url):
                         url_builder = temp_url
                         break
                     time.sleep(4)
-            elif ut.is_not_empty(self.tag):
+            elif not mystring.string(self.tag).empty:
                 url_builder += f"/{self.tag}.zip"
 
         self.zip_url_base = url_builder
@@ -360,10 +360,8 @@ class GRepo(object):
 
     @property
     def webarchive_save_url(self):
-        if self.webarchive_url_base is not None:
-            return self.webarchive_url_base
-
-        self.webarchive_url_base = "https://web.archive.org/save/" + str(self.zip_url)
+        if self.webarchive_url_base is None:
+            self.webarchive_url_base = "https://web.archive.org/save/" + str(self.zip_url)
         return self.webarchive_url_base
 
     @property
