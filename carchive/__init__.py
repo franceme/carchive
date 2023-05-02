@@ -1,5 +1,7 @@
 import os, requests, json, sys, datetime
 from copy import deepcopy as dc
+from typing import Dict, List, Union, Callable
+
 from utils import live_link
 try:
 	import mystring
@@ -12,6 +14,45 @@ https://pypi.org/project/python-crontab/
 https://pypi.org/project/python-cron/
 """
 
+class niceghapi(object):
+	def __init__(self):
+		self.cur_status = None
+		self.now = None
+
+	@property
+	def status(self):
+		# curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
+		self.cur_status, self.now = requests.get("https://api.github.com/users/octocat").json()['data'].headers, datetime.datetime.now()
+		return {
+			'Reset': self.cur_status['X-RateLimit-Reset'],
+			'Used': self.cur_status['X-RateLimit-Used'],
+			'Total': self.cur_status['X-RateLimit-Limit'],
+			'Remaining': self.cur_status['X-RateLimit-Remaining'],
+			'RemainingDate':datetime.datetime.fromtimestamp(int(self.cur_status['X-RateLimit-Reset'])),
+			'WaitFor':datetime.datetime.fromtimestamp(int(self.cur_status['X-RateLimit-Reset'])) - self.now,
+			'WaitForSec':(datetime.datetime.fromtimestamp(int(self.cur_status['X-RateLimit-Reset'])) - self.now).seconds,
+			'WaitForNow':lambda :(datetime.datetime.fromtimestamp(int(self.cur_status['X-RateLimit-Reset'])) - datetime.datetime.now()).seconds,
+		}
+
+	@property
+	def timing(self):
+		import time
+		if not hasattr(self, 'remaining') or self.remaining is None:
+			stats = self.status
+			print(stats)
+			self.remaining = int(stats['Remaining'])
+			self.wait_until = stats['WaitForNow']
+		elif self.remaining >= 10:
+			self.remaining = self.remaining - 1
+		else:
+			time_to_sleep = self.wait_until
+			for itr in range(time_to_sleep):
+				print("{}/{}".format(itr,time_to_sleep))
+				time.sleep(1)
+			delattr(self, 'remaining')
+			delattr(self, 'wait_until')
+		return
+
 class githuburl(object):
 	def __init__(self,url,token=None,verify=True,commit=None,tag=None):
 		self.url = mystring.string(dc(url))
@@ -20,6 +61,7 @@ class githuburl(object):
 		self.stringurl = mystring.string(dc(url))
 		self.commit = None
 		self.tag = None
+		self.api_watch = niceghapi()
 
 		url = mystring.string(url).repsies('https://','http://','github.com/').repsies_end('.git', "/")
 		self.owner, self.reponame = url.split("/")
@@ -68,40 +110,6 @@ class githuburl(object):
 	def __exit__(self, exc_type, exc_val, exc_tb):
 		mystring.string("yes|rm -r {0}".format(self.dir)).exec(True)
 		return self
-
-	@property
-	def status(self):
-		# curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
-		cur_status, now = requests.get("https://api.github.com/users/octocat").json()['data'].headers, datetime.datetime.now()
-		return {
-			'Reset': cur_status['X-RateLimit-Reset'],
-			'Used': cur_status['X-RateLimit-Used'],
-			'Total': cur_status['X-RateLimit-Limit'],
-			'Remaining': cur_status['X-RateLimit-Remaining'],
-			'RemainingDate':datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])),
-			'WaitFor':datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - now,
-			'WaitForSec':(datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - now).seconds,
-			'WaitForNow':lambda :(datetime.datetime.fromtimestamp(int(cur_status['X-RateLimit-Reset'])) - datetime.datetime.now()).seconds,
-		}
-
-	@property
-	def timing(self):
-		import time
-		if not hasattr(self, 'remaining') or self.remaining is None:
-			stats = self.status
-			print(stats)
-			self.remaining = int(stats['Remaining'])
-			self.wait_until = stats['WaitForNow']
-		elif self.remaining >= 10:
-			self.remaining = self.remaining - 1
-		else:
-			time_to_sleep = self.wait_until
-			for itr in range(time_to_sleep):
-				print("{}/{}".format(itr,time_to_sleep))
-				time.sleep(1)
-			delattr(self, 'remaining')
-			delattr(self, 'wait_until')
-		return
 
 	def find_asset(self,asset_check=None, accept="application/vnd.github+json", print_info=False):
 		if asset_check is None:
@@ -262,3 +270,21 @@ class GRepo(object):
 				writer.close()
 
 		return output
+
+class GRepo_Fu(object):
+	#https://docs.github.com/en/rest/repos?apiVersion=2022-11-28
+	def __init__(self, metrics:Dict[
+		str, Callable[[str], Dict[str, str]]
+	], repo_urls:object=None, token:str=None):
+
+		if repo_urls is not None:
+			self.repos = mystring.lyst([GRepo(x, token=token) for x in mystring.lyst(repo_urls)])
+		else:
+			self.repos = mystring.lyst()
+		self.metrics = metrics
+		self.token = token
+		self.api_watch = niceghapi()
+
+	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28
+	def pull_by_topic(self, topics:Union[str, List]):
+		topics = mystring.lyst(topics)
