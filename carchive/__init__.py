@@ -172,6 +172,48 @@ class githuburl(object):
 			print(download_url)
 			return self.newdown(download_url['url'], save_path, accept)#, save_path, chunk_size, verify, accept, auth)
 		return None
+	
+	def get_date_from_repo_commit(self, commit='master',headers={}):
+		return self.get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(self.core, commit, headers))
+
+	def get_date_from_commit_url(self, headers={}):
+		req = requests.get(self.furl, headers=headers).json()
+		return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
+
+	def get_commits_of_repo(self, from_date=None, to_date=None, headers={}):
+		params = []
+		if from_date:
+			params += ["since={0}".format(from_date)]
+		if from_date:
+			params += ["until={0}".format(to_date)]
+		request_url = "https://api.github.com/repos/{0}/commits?{1}".format(self.core, '&'.join(params))
+		req = requests.get(request_url, headers=headers)
+		return req.json()
+
+	def zip_url(self, commit=None, tag=None):
+		url_builder = self.furl + "/archive"
+		if not mystring.string(commit).empty:
+			url_builder += f"/{commit}.zip"
+
+		if not mystring.string(commit).empty:
+			url_builder += f"/refs/heads"
+			if not mystring.string(tag).empty:
+				for base_branch in ['master', 'main']:
+					temp_url = url_builder + f"/{base_branch}.zip"
+					if live_link(temp_url):
+						url_builder = temp_url
+						break
+					time.sleep(4)
+			elif not mystring.string(tag).empty:
+				url_builder += f"/{tag}.zip"
+
+		self.zip_url_base = url_builder
+		return self.zip_url_base
+
+	def webarchive_save_url(self, commit=None, tag=None):
+		if self.webarchive_url_base is None:
+			self.webarchive_url_base = "https://web.archive.org/save/" + str(self.zip_url(commit=commit, tag=tag))
+		return self.webarchive_url_base
 
 class GRepo(object):
 	"""
@@ -195,7 +237,6 @@ class GRepo(object):
 
 		branches, main_branch = [], None
 		with contextlib.suppress(Exception):
-			#https://docs.github.com/en/rest/branches/branches#list-branches
 			for branch in requests.get(f"https://api.github.com/repos/{self.repo.core}/branches").json():
 				branches += [branch['name']]
 				if branch['name'].lower() in ['main','master'] and main_branch is None:
@@ -210,23 +251,6 @@ class GRepo(object):
 				writer.write("GH_TOKEN={0}".format(token))
 		except:
 			pass
-
-	def get_date_from_repo_commit(self, headers={}):
-		return self.get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(self.repo.core, self.commit, headers))
-
-	def get_date_from_commit_url(self, headers={}):
-		req = requests.get(self.furl, headers=headers).json()
-		return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
-
-	def get_commits_of_repo(self, from_date=None, to_date=None, headers={}):
-		params = []
-		if from_date:
-			params += ["since={0}".format(from_date)]
-		if from_date:
-			params += ["until={0}".format(to_date)]
-		request_url = "https://api.github.com/repos/{0}/commits?{1}".format(self.repo.core, '&'.join(params))
-		req = requests.get(request_url, headers=headers)
-		return req.json()
 
 	def __clone(self):
 		if not self.cloned: #not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
@@ -256,51 +280,10 @@ class GRepo(object):
 		return self
 
 	@property
-	def zip_url(self):
-		if self.zip_url_base is not None:
-			return self.zip_url_base
-
-		if self.gh_api is not None:
-			self.zip_url_base = self.gh_api.commit_zip_url
-			return self.zip_url_base
-
-		if not self.url.startswith("https://github.com/"):
-			print("NONE")
-			return None
-
-		# url_builder = "https://web.archive.org/save/" + repo.url + "/archive"
-		url_builder = self.url + "/archive"
-		if not mystring.string(self.commit).empty:
-			# https://github.com/owner/reponame/archive/hash.zip
-			url_builder += f"/{self.commit}.zip"
-
-		if not mystring.string(self.commit).empty:
-			# https://web.archive.org/save/https://github.com/owner/reponame/archive/refs/heads/tag.zip
-			url_builder += f"/refs/heads"
-			if not mystring.string(self.tag).empty:
-				for base_branch in ['master', 'main']:
-					temp_url = url_builder + f"/{base_branch}.zip"
-					if live_link(temp_url):
-						url_builder = temp_url
-						break
-					time.sleep(4)
-			elif not mystring.string(self.tag).empty:
-				url_builder += f"/{self.tag}.zip"
-
-		self.zip_url_base = url_builder
-		return self.zip_url_base
-
-	@property
-	def webarchive_save_url(self):
-		if self.webarchive_url_base is None:
-			self.webarchive_url_base = "https://web.archive.org/save/" + str(self.zip_url)
-		return self.webarchive_url_base
-
-	@property
 	def webarchive(self):
 		import time
 		save_url = "NotAvailable"
-		url = self.zip_url
+		url = self.core.zip_url(self.commit, self.tag)
 		try:
 			if live_link(url):
 				saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
@@ -331,9 +314,11 @@ class GRepo(object):
 			'WebArchiveSaveUrl':self.webarchive_save_url
 		}
 
-	@property
-	def jsonl(self):
+	def jsonl(self, exclude_extensions=[], jsonl_file=None):
+		output = jsonl_file or []
+		-- converting this
 		try:
+			if output == []:
 			with open(self.jsonl_file, 'w+') as writer:
 				writer.write(str(json.dumps({**{'header':True},**self.info})) + "\n")
 				self.__clone()
@@ -342,7 +327,7 @@ class GRepo(object):
 						foil = os.path.join(root, filename)
 						ext = foil.split('.')[-1].lower()
 
-						if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
+						if "/.git/" not in foil and (exclude_extensions is None or ext not in exclude_extensions):
 							try:
 								writer.write(mystring.foil(foil).structured()+ "\n")
 							except Exception as e:
@@ -354,7 +339,7 @@ class GRepo(object):
 		return self.jsonl_file
 
 	@property
-	def jsonl_contents(self):
+	def jsonl_contents(self, exclude_extensions=[]):
 		contents = []
 		try:
 			self.__clone()
@@ -363,7 +348,7 @@ class GRepo(object):
 					foil = os.path.join(root, filename)
 					ext = foil.split('.')[-1].lower()
 
-					if "/.git/" not in foil and (self.exclude_extensions is None or ext not in self.exclude_extensions):
+					if "/.git/" not in foil and (exclude_extensions is None or ext not in exclude_extensions):
 						try:
 							contents += [
 								mystring.foil(foil).structured()
