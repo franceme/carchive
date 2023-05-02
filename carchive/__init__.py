@@ -16,19 +16,36 @@ https://pypi.org/project/python-cron/
 """
 
 class githuburl(object):
-	def __init__(self,url,token=None,verify=True):
+	def __init__(self,url,token=None,verify=True,commit=None,tag=None):
 		self.url = dc(url)
 		self.token = token
 		self.verify = verify
 		self.remaining = None
 		self.total = None
 		self.wait_until = None
+		self.stringurl = dc(url)
+		self.commit = None
+		self.tag = None
 
 		url = url.replace('https://','').replace('http://','')
 		if url.endswith('.git'):
 			url = url[:-1 * len('.git')]
 		url = url.replace('github.com/','')
+		if url.endswith("/"):
+			url = url[:-1]
 		self.owner, self.reponame = url.split("/")
+		
+		if not mystring.string(tag).empty:
+			self.tag = tag
+			self.cloneurl += f" --branch {tag}"
+			self.stringurl += f"<b>{tag}"
+		if not mystring.string(self.commit).empty:
+			self.commit = commit
+			self.stringurl += f"<#>{self.commit}"
+
+	@property
+	def dir(self):
+		return self.reponame+"/"
 
 	@property
 	def core(self):
@@ -156,89 +173,66 @@ class GRepo(object):
 	with GRepo("https://github.com/owner/repo","v1","hash") as repo:
 		os.path.exists(repo.reponame) #TRUE
 	"""
-	def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, local_dir: bool = False, jsonl_file: str = None, exclude_extensions: list = [],self_archive_wait = 5*60, git_base_string="git"):
+	def __init__(self, repo: str, tag: str = None, commit: str = None, delete: bool = True, jsonl_file: str = None, git_base_string="git"):
+		self.repo = githuburl(repo,tag=tag,commit=commit)
 		self.inipath = os.path.abspath(os.curdir)
 		self.delete = delete
 		self.jsonl_file = jsonl_file
-		self.repo = repo
-		self.exclude_extensions = exclude_extensions
-		self.self_archive_wait=self_archive_wait
 		self.git_base_string = git_base_string
 		self.tag = mystring.string(tag)
 		self.commit = mystring.string(commit).trim
-
-		self.local_dir = None
 		self.cloneurl = None
-		self.gh_api = None
+		self.gh_api = GhApi()
 
-		if local_dir:
-			self.url = f"file://{self.repo}"
-			self.full_url = repo
-			self.local_dir = local_dir
-			self.api = None
-		else:
-			repo = repo.replace('http://', 'https://').replace('.git','')
-			if repo.endswith("/"):
-				repo = repo[:-1]
+		self.url = repo
+		self.full_url = repo
 
-			self.url = repo
-			self.full_url = repo
-			self.local_dir = str(repo.split("/")[-1])
+		splitzies = self.url.replace('https://github.com/','').split('/')
+		owner,corerepo = splitzies[0], splitzies[1]
 
-			if not mystring.string(tag).empty:
-				self.tag = tag
-				self.cloneurl += f" --branch {tag}"
-				self.full_url += f"<b>{tag}"
-			if not mystring.string(self.commit).empty:
-				self.full_url += f"<#>{self.commit}"
-
-			gh_api = GhApi()
-			splitzies = self.url.replace('https://github.com/','').split('/')
-			owner,corerepo = splitzies[0], splitzies[1]
-
-			branches, main_branch = [], None
-			with contextlib.suppress(Exception):
-				#https://docs.github.com/en/rest/branches/branches#list-branches
-				for branch in requests.get(f"https://api.github.com/repos/{owner}/{corerepo}/branches").json():
-					branches += [branch['name']]
-					if branch['name'].lower() in ['main','master'] and main_branch is None:
-						main_branch = "heads/"+branch['name']
-			if main_branch is None and len(branches) > 0:
-				main_branch = "heads/"+branches[0]
+		branches, main_branch = [], None
+		with contextlib.suppress(Exception):
+			#https://docs.github.com/en/rest/branches/branches#list-branches
+			for branch in requests.get(f"https://api.github.com/repos/{owner}/{corerepo}/branches").json():
+				branches += [branch['name']]
+				if branch['name'].lower() in ['main','master'] and main_branch is None:
+					main_branch = "heads/"+branch['name']
+		if main_branch is None and len(branches) > 0:
+			main_branch = "heads/"+branches[0]
 
 
-			with contextlib.suppress(Exception):
-				self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref=main_branch)
+		with contextlib.suppress(Exception):
+			self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref=main_branch)
 
-			if self.gh_api is not None:
-				self.gh_api.owner = owner
-				self.gh_api.repo = corerepo
-				self.gh_api.commit = self.gh_api['object']['sha']
-				self.gh_api.commit_url = '/'.join([
-					"https://github.com",
-					self.gh_api.owner,
-					self.gh_api.repo,
-					"tree",
-					self.gh_api.commit
-				])
-				self.gh_api.commit_zip_url = '/'.join([
-					"https://github.com",
-					self.gh_api.owner,
-					self.gh_api.repo,
-					"archive",
-					str(self.gh_api.commit)+".zip"
-				])
+		if self.gh_api is not None:
+			self.gh_api.owner = owner
+			self.gh_api.repo = corerepo
+			self.gh_api.commit = self.gh_api['object']['sha']
+			self.gh_api.commit_url = '/'.join([
+				"https://github.com",
+				self.gh_api.owner,
+				self.gh_api.repo,
+				"tree",
+				self.gh_api.commit
+			])
+			self.gh_api.commit_zip_url = '/'.join([
+				"https://github.com",
+				self.gh_api.owner,
+				self.gh_api.repo,
+				"archive",
+				str(self.gh_api.commit)+".zip"
+			])
 
-		if self.url.endswith("/"):
-			self.url = self.url[:-1]
+	if self.url.endswith("/"):
+		self.url = self.url[:-1]
 
-		self.reponame = self.url.split('/')[-1].replace('.git','')
-		self.webarchive_url_base = None
-		self.zip_url_base = None
-		self.reponame = self.reponame or repo.split('/')[-1]
-		self.cloned = False
+	self.reponame = self.url.split('/')[-1].replace('.git','')
+	self.webarchive_url_base = None
+	self.zip_url_base = None
+	self.reponame = self.reponame or repo.split('/')[-1]
+	self.cloned = False
 
-	def set_gh_token(self, token):
+	def login(self, token):
 		os.environ['GH_TOKEN'] = token
 		try:
 			with open("~/.bashrc", "a+") as writer:
@@ -361,7 +355,6 @@ class GRepo(object):
 			print(f"Issue with saving the link {url}: {e}")
 			pass
 
-		time.sleep(self.self_archive_wait)
 		return save_url
 
 	@property
