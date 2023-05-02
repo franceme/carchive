@@ -7,6 +7,7 @@ def live_link(url: str):
 		time.sleep(2)
 	return response
 
+
 def str_to_base64(string, encoding:str='utf-8'):
 	import base64
 	try:
@@ -14,6 +15,7 @@ def str_to_base64(string, encoding:str='utf-8'):
 	except Exception as e:
 		print(e)
 		return None
+
 
 def base64_to_str(b64, encoding:str='utf-8'):
 	import base64
