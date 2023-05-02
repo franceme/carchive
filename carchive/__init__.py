@@ -1,4 +1,5 @@
 import os, requests, json, base64, hashlib, funbelts as ut, sys, datetime, contextlib
+from copy import deepcopy as dc
 try:
 	from ghapi.all import GhApi
 	import mystring
@@ -16,12 +17,18 @@ https://pypi.org/project/python-cron/
 
 class githuburl(object):
 	def __init__(self,url,token=None,verify=True):
-		self.url = url
+		self.url = dc(url)
 		self.token = token
 		self.verify = verify
 		self.remaining = None
 		self.total = None
 		self.wait_until = None
+
+		url = url.replace('https://','').replace('http://','')
+		if url.endswith('.git'):
+			url = url[:-1 * len('.git')]
+		url = url.replace('github.com/','')
+		self.owner, self.reponame = url.split("/")
 
 	def __call__(self,return_error=False, json=True, baserun=False):
 		if not baserun:
@@ -47,7 +54,7 @@ class githuburl(object):
 	@property
 	def status(self):
 		# curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
-		cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
+		#cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
 		return {
 			'Reset': cur_status['X-RateLimit-Reset'],
 			'Used': cur_status['X-RateLimit-Used'],
