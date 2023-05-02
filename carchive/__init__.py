@@ -1,11 +1,9 @@
 import os, requests, json, base64, hashlib, funbelts as ut, sys, datetime, contextlib
 from copy import deepcopy as dc
 try:
-	from ghapi.all import GhApi
 	import mystring
 except:
-	os.system(f"{sys.executable} -m pip install --upgrade ghapi mystring")
-	from ghapi.all import GhApi
+	os.system(f"{sys.executable} -m pip install --upgrade mystring")
 	import mystring
 from waybackpy import WaybackMachineSaveAPI as checkpoint
 from utils import live_link
@@ -54,6 +52,14 @@ class githuburl(object):
 	@property
 	def furl(self):
 		return "https://github.com/{0}".format(self.core)
+
+	def filewebinfo(self, filepath, lineno=None, commit='master'):
+		baseurl = "https://github.com/{0}/blob/{1}/{2}".format(self.furl, commit,
+															   filepath.replace(str(self.reponame) + "/", '', 1))
+		if lineno:
+			baseurl += "#L{0}".format(int(lineno))
+
+		return baseurl
 
 	def __call__(self,return_error=False, json=True, baserun=False):
 		if not baserun:
@@ -182,55 +188,20 @@ class GRepo(object):
 		self.tag = mystring.string(tag)
 		self.commit = mystring.string(commit).trim
 		self.cloneurl = None
-		self.gh_api = GhApi()
-
-		self.url = repo
-		self.full_url = repo
-
-		splitzies = self.url.replace('https://github.com/','').split('/')
-		owner,corerepo = splitzies[0], splitzies[1]
+		self.webarchive_url_base = None
+		self.zip_url_base = None
+		self.login = False
+		self.cloned = False
 
 		branches, main_branch = [], None
 		with contextlib.suppress(Exception):
 			#https://docs.github.com/en/rest/branches/branches#list-branches
-			for branch in requests.get(f"https://api.github.com/repos/{owner}/{corerepo}/branches").json():
+			for branch in requests.get(f"https://api.github.com/repos/{self.repo.core}/branches").json():
 				branches += [branch['name']]
 				if branch['name'].lower() in ['main','master'] and main_branch is None:
 					main_branch = "heads/"+branch['name']
 		if main_branch is None and len(branches) > 0:
 			main_branch = "heads/"+branches[0]
-
-
-		with contextlib.suppress(Exception):
-			self.gh_api = gh_api.git.get_ref(owner=owner, repo=corerepo, ref=main_branch)
-
-		if self.gh_api is not None:
-			self.gh_api.owner = owner
-			self.gh_api.repo = corerepo
-			self.gh_api.commit = self.gh_api['object']['sha']
-			self.gh_api.commit_url = '/'.join([
-				"https://github.com",
-				self.gh_api.owner,
-				self.gh_api.repo,
-				"tree",
-				self.gh_api.commit
-			])
-			self.gh_api.commit_zip_url = '/'.join([
-				"https://github.com",
-				self.gh_api.owner,
-				self.gh_api.repo,
-				"archive",
-				str(self.gh_api.commit)+".zip"
-			])
-
-	if self.url.endswith("/"):
-		self.url = self.url[:-1]
-
-	self.reponame = self.url.split('/')[-1].replace('.git','')
-	self.webarchive_url_base = None
-	self.zip_url_base = None
-	self.reponame = self.reponame or repo.split('/')[-1]
-	self.cloned = False
 
 	def login(self, token):
 		os.environ['GH_TOKEN'] = token
@@ -240,31 +211,22 @@ class GRepo(object):
 		except:
 			pass
 
-	def get_date_from_repo_commit(self, repo, commit, headers={}):
-		return self.get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(repo, commit, headers))
+	def get_date_from_repo_commit(self, headers={}):
+		return self.get_date_from_commit_url("https://api.github.com/repos/{0}/commits/{1}".format(self.repo.core, self.commit, headers))
 
-	def get_date_from_commit_url(self, url, headers={}):
-		req = requests.get(url, headers=headers).json()
+	def get_date_from_commit_url(self, headers={}):
+		req = requests.get(self.furl, headers=headers).json()
 		return datetime.datetime.strptime(req['commit']['committer']['date'], "%Y-%m-%dT%H:%M:%SZ")
 
-	def get_commits_of_repo(self, repo, from_date=None, to_date=None, headers={}):
+	def get_commits_of_repo(self, from_date=None, to_date=None, headers={}):
 		params = []
 		if from_date:
 			params += ["since={0}".format(from_date)]
 		if from_date:
 			params += ["until={0}".format(to_date)]
-		request_url = "https://api.github.com/repos/{0}/commits?{1}".format(repo, '&'.join(params))
+		request_url = "https://api.github.com/repos/{0}/commits?{1}".format(self.repo.core, '&'.join(params))
 		req = requests.get(request_url, headers=headers)
 		return req.json()
-
-	def filewebinfo(self, repo, filepath, lineno=None, commit='master'):
-		owner, reponame = repo.split('/')
-		baseurl = "https://github.com/{0}/blob/{1}/{2}".format(repo, commit,
-															   filepath.replace(str(reponame) + "/", '', 1))
-		if lineno:
-			baseurl += "#L{0}".format(int(lineno))
-
-		return baseurl
 
 	def __clone(self):
 		if not self.cloned: #not os.path.exists(self.reponame) and self.url.startswith("https://github.com/"):
