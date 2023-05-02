@@ -272,7 +272,8 @@ class GRepo(object):
 		return output
 
 class GRepo_Fu(object):
-	#https://docs.github.com/en/rest/repos?apiVersion=2022-11-28
+	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28
+	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
 	def __init__(self, metrics:Dict[
 		str, Callable[[str], Dict[str, str]]
 	], repo_urls:object=None, token:str=None):
