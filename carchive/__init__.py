@@ -30,6 +30,14 @@ class githuburl(object):
 		url = url.replace('github.com/','')
 		self.owner, self.reponame = url.split("/")
 
+	@property
+	def core(self):
+		return "{0}/{1}".format(self.owner, self.reponame)
+
+	@property
+	def furl(self):
+		return "https://github.com/{0}".format(self.core)
+
 	def __call__(self,return_error=False, json=True, baserun=False):
 		if not baserun:
 			self.timing
@@ -41,7 +49,7 @@ class githuburl(object):
 			headers['Authorization'] = 'Bearer {}'.format(self.token)
 
 		try:
-			output['data'] = requests.get(self.url, verify=self.verify and self.verify, headers=headers)
+			output['data'] = requests.get(self.furl, verify=self.verify and self.verify, headers=headers)
 			if json:
 				output['data'] = output['data'].json()
 		except Exception as e:
@@ -54,7 +62,7 @@ class githuburl(object):
 	@property
 	def status(self):
 		# curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
-		#cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
+		cur_status, now = self("https://api.github.com/users/octocat", json=False, baserun=True)['data'].headers, datetime.datetime.now()
 		return {
 			'Reset': cur_status['X-RateLimit-Reset'],
 			'Used': cur_status['X-RateLimit-Used'],
@@ -103,7 +111,7 @@ class githuburl(object):
 				pass
 
 		// -> look into common converting github url to repo
-		latest_version = req("https://api.github.com/repos/{}/releases/latest".format(repo))
+		latest_version = req("https://api.github.com/repos/{}/releases/latest".format(self.core))
 		release_information = req(latest_version['url'])
 		for asset in release_information['assets']:
 			print(asset['name'])
@@ -112,8 +120,8 @@ class githuburl(object):
 				return asset #['browser_download_url']
 		return None
 
-	def download(self, url, save_path, chunk_size=128, accept="application/vnd.github+json"):
-		r = requests.get(url, stream=True, verify=self.verify, headers={
+	def download(self, save_path, chunk_size=128, accept="application/vnd.github+json"):
+		r = requests.get(self.furl, stream=True, verify=self.verify, headers={
 			"Accept": accept,
 			"Authorization":"Bearer {}".format(self.token)
 		})
@@ -122,8 +130,8 @@ class githuburl(object):
 				fd.write(chunk)
 		return save_path
 
-	def newdown(self, url, save_path, accept="application/vnd.github+json"):
-		response = requests.get(url, headers={
+	def newdown(self, save_path, accept="application/vnd.github+json"):
+		response = requests.get(self.furl, headers={
 			"Accept": accept,
 			"Authorization":"Bearer {}".format(self.token)
 		}, timeout=50, verify=self.verify)
