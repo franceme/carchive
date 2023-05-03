@@ -1,10 +1,12 @@
-import os, requests, json, sys, datetime
+import os, requests, json, sys, datetime, time
+import queue
 from copy import deepcopy as dc
+from threading import Lock
 from typing import Dict, List, Union, Callable
 
 import mystring
 
-from github import Github
+from github import Github, Repository
 import git2net
 
 """
@@ -182,22 +184,48 @@ class githuburl(object):
 class GRepo_Fu(object):
 	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
 	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
-	def __init__(self, search_string:str, metrics:List[Callable[[str], Dict[str, str]]], token:str=None):
-		self.search_string = mystring.string(search_string)
+	def __init__(self, metrics:List[Callable[[str], Dict[str, str]]], token:str=None):
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
-			login()
+			self.login()
 
-		g = Github(self.token)
+		self.g = Github(self.token)
+		self.processor = mystring.MyThreads(10)
+		self.processed_paths = queue.Queue()
 
-		for repo_itr, repo in enumerate(g.search_repositories(query=self.search_string)):
+		##https://superfastpython.com/multithreaded-file-append/
+		self.mapping_file_lock = Lock()
+		with open("mapping_file.csv","w+") as writer:
+			writer.write("Repository Num, Repository, Search_String\n")
 
-			#https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
-			#https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
-			git2net.mine_git_repo(git_repo_dir, sqlite_db_file)
-			git2net.disambiguate_aliases_db(sqlite_db_file)
-			git2net.compute_complexity(git_repo_dir, sqlite_db_file, extra_eval_methods = [])
+		def appr(repository_num, repo, search_string):
+			with self.mapping_file_lock:
+				with open("mapping_file.csv", "a+") as writer:
+					writer.write("{0}, {1}, {2}\n".format(
+						repository_num, repo, search_string
+					))
+		self.appr = appr
+
+
+	def __call__(self, search_string:str):
+		search_string = mystring.string(search_string)
+
+		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
+			def process():
+				# https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
+				# https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
+				git2net.mine_git_repo(git_repo_dir, sqlite_db_file)
+				git2net.disambiguate_aliases_db(sqlite_db_file)
+				git2net.compute_complexity(git_repo_dir, sqlite_db_file, extra_eval_methods=[])
+
+				appr(repo_itr, repo,search_string)
+				fin_queue.put(repo)
+
+			return process
+
+		for repo_itr, repo in enumerate(self.g.search_repositories(query=search_string)):
+			self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
