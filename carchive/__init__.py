@@ -1,7 +1,7 @@
-import os, requests, json, sys, datetime, time, shutil, queue, threading
+import os, requests, datetime, time, queue, threading
 from copy import deepcopy as dc
 from threading import Lock
-from typing import Dict, List, Union, Callable
+from typing import Dict, List, Callable, Generic, TypeVar
 from abc import ABC, abstractmethod
 
 import mystring,splittr
@@ -182,10 +182,25 @@ class githuburl(object):
 	def webarchive_save_url(self,):
 		return mystring.string("https://web.archive.org/save/" + self.zip_url)
 
+T = TypeVar('T') #https://shanenullain.medium.com/abstract-factory-in-python-with-generic-typing-b9ceca2bf89e
+class GRepo_Seed_Metric(ABC, Generic[T]):
+	@abstractmethod
+	def metric(filename: str, source_code: str) -> Dict[str, T]:
+		pass
+
+	@abstractmethod
+	def diff(latest: T, previous: T):
+		pass
+
+	def __call__(self):
+		setattr(self.metric, 'diff', self.diff)
+		return self.metric
+
+
 class GRepo_Pod(object):
 	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
 	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
-	def __init__(self, metrics:List[Callable[[str], Dict[str, str]]], token:str=None):
+	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None):
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
@@ -211,15 +226,6 @@ class GRepo_Pod(object):
 				with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
 					writer.write(string)
 		self.appr = appr
-	
-	class GRepo_Seed_Metric(ABC, Generic[T]):
-		@abstractmethod
-		def metric(filename:str, source_code:str) -> Dict[str, any]:
-			pass
-		@abstractmethod
-		def diff(latest:any, previous)
-
-
 
 	def __call__(self, search_string:str):
 		search_string = mystring.string(search_string)
@@ -240,7 +246,7 @@ class GRepo_Pod(object):
 				# https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
 				git2net.mine_git_repo(repo_dir, sqlite_db_file)
 				git2net.disambiguate_aliases_db(sqlite_db_file)
-				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=self.metrics)
+				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=[x() for x in self.metrics])
 
 				if os.stat(sqlite_db_file).st_size > 100_000_000:
 					#The file is bigger than GitHub Allows
