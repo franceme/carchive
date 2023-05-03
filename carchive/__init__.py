@@ -1,11 +1,11 @@
-import os, requests, json, sys, datetime, time
+import os, requests, json, sys, datetime, time, shutil
 import queue
 import threading
 from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Union, Callable
 
-import mystring
+import mystring,splittr
 
 from github import Github, Repository
 import git2net
@@ -205,12 +205,9 @@ class GRepo_Fu(object):
 			with open("mapping_file.csv","w+") as writer:
 				writer.write("Repository Num, Repository, Search_String\n")
 
-		def appr(repository_num, repo, search_string):
+		def appr(string: mystring.string):
 			#with self.mapping_file_lock:
 			if True:
-				string = mystring.string("{0}, {1}, {2}\n".format(
-					repository_num, repo, search_string
-				))
 				with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
 					writer.write(string)
 		self.appr = appr
@@ -221,13 +218,27 @@ class GRepo_Fu(object):
 
 		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
 			def process():
+				name = mystring.string("ITR:{0}_URL:{1}_STR:{2}\n".format(
+					repo_itr, repo.url, search_string
+				))
+				repo_dir = "repo_" + str(name.tobase64())
+				results_dir = "results_" + str(name.tobase64())
+				os.makedirs(results_dir, exist_ok=True)
+				sqlite_db_file = os.path.join(results_dir, "git_to_net.sqlite")
+
+				git2net.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
+
 				# https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
 				# https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
-				git2net.mine_git_repo(git_repo_dir, sqlite_db_file)
+				git2net.mine_git_repo(repo_dir, sqlite_db_file)
 				git2net.disambiguate_aliases_db(sqlite_db_file)
-				git2net.compute_complexity(git_repo_dir, sqlite_db_file, extra_eval_methods=[])
+				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=[])
 
-				appr(repo_itr, repo,search_string)
+				if os.stat(sqlite_db_file).st_size > 100_000_000:
+					#The file is bigger than GitHub Allows
+					splittr.
+
+				appr(name)
 				#with fin_queue.lock:
 				fin_queue.put(repo)
 
