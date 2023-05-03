@@ -1,14 +1,11 @@
 import os, requests, json, sys, datetime
 from copy import deepcopy as dc
 from typing import Dict, List, Union, Callable
-from github import Github
 
-from utils import live_link
-try:
-	import mystring
-except:
-	os.system(f"{sys.executable} -m pip install --upgrade mystring")
-	import mystring
+import mystring
+
+from github import Github
+import git2net
 
 """
 https://pypi.org/project/python-crontab/
@@ -182,26 +179,24 @@ class githuburl(object):
 	def webarchive_save_url(self,):
 		return mystring.string("https://web.archive.org/save/" + self.zip_url)
 
-class GRepo(object):
-	def __init__(self, repo_url: str, token=None):
-		self.repo_url = repo_url
-		self.token = token
-
-
-
-
 class GRepo_Fu(object):
 	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
-	def __init__(self, metrics:Dict[
-		str, Callable[[str], Dict[str, str]]
-	], token:str=None):
-
+	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
+	def __init__(self, metrics:List[Callable[[str], Dict[str, str]]] token:str=None):
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
 			login()
+
 		g = Github(self.token)
 
+		for repo in lyst:
+
+			#https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
+			#https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
+			git2net.mine_git_repo(git_repo_dir, sqlite_db_file)
+			git2net.disambiguate_aliases_db(sqlite_db_file)
+			git2net.compute_complexity(git_repo_dir, sqlite_db_file, extra_eval_methods = [])
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token

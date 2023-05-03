@@ -105,8 +105,10 @@ setup(
 	entry_points={
 	},
 	install_requires=[
+		#https://pygithub.readthedocs.io/en/latest/introduction.html
 		"PyGithub", #To search for Repositories
 		#https://stackoverflow.com/questions/32688688/how-to-write-setup-py-to-include-a-git-repository-as-a-dependency/54701434#54701434
+		#https://git2net.readthedocs.io/en/latest/
 		"git2net @ git+ssh://git@github.com/franceme/git2net.git", #To gather and run metrics on the Repositories
 		"splittr",
 		"waybackpy",
