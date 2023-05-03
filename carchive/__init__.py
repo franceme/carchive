@@ -182,7 +182,8 @@ class githuburl(object):
 class GRepo_Fu(object):
 	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
 	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
-	def __init__(self, metrics:List[Callable[[str], Dict[str, str]]] token:str=None):
+	def __init__(self, search_string:str, metrics:List[Callable[[str], Dict[str, str]]], token:str=None):
+		self.search_string = mystring.string(search_string)
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
@@ -190,7 +191,7 @@ class GRepo_Fu(object):
 
 		g = Github(self.token)
 
-		for repo in lyst:
+		for repo_itr, repo in enumerate(g.search_repositories(query=self.search_string)):
 
 			#https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
 			#https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
