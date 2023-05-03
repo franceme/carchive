@@ -1,5 +1,6 @@
 import os, requests, json, sys, datetime, time
 import queue
+import threading
 from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Union, Callable
@@ -193,18 +194,25 @@ class GRepo_Fu(object):
 		self.g = Github(self.token)
 		self.processor = mystring.MyThreads(10)
 		self.processed_paths = queue.Queue()
+		setattr(self.processed_paths, 'lock', threading.Lock())
 
-		##https://superfastpython.com/multithreaded-file-append/
-		self.mapping_file_lock = Lock()
-		with open("mapping_file.csv","w+") as writer:
-			writer.write("Repository Num, Repository, Search_String\n")
+		self.current_repo_itr = None
+		self.total_repo_len = None
+
+		if False:
+			##https://superfastpython.com/multithreaded-file-append/
+			self.mapping_file_lock = Lock()
+			with open("mapping_file.csv","w+") as writer:
+				writer.write("Repository Num, Repository, Search_String\n")
 
 		def appr(repository_num, repo, search_string):
-			with self.mapping_file_lock:
-				with open("mapping_file.csv", "a+") as writer:
-					writer.write("{0}, {1}, {2}\n".format(
-						repository_num, repo, search_string
-					))
+			#with self.mapping_file_lock:
+			if True:
+				string = mystring.string("{0}, {1}, {2}\n".format(
+					repository_num, repo, search_string
+				))
+				with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
+					writer.write(string)
 		self.appr = appr
 
 
@@ -220,12 +228,16 @@ class GRepo_Fu(object):
 				git2net.compute_complexity(git_repo_dir, sqlite_db_file, extra_eval_methods=[])
 
 				appr(repo_itr, repo,search_string)
+				#with fin_queue.lock:
 				fin_queue.put(repo)
 
 			return process
 
-		for repo_itr, repo in enumerate(self.g.search_repositories(query=search_string)):
+		repos = self.g.search_repositories(query=search_string)
+		self.total_repo_len = len(repos) - 1
+		for repo_itr, repo in enumerate(repos):
 			self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
+			self.current_repo_itr = repo_itr
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
@@ -234,3 +246,29 @@ class GRepo_Fu(object):
 				writer.write("GH_TOKEN={0}".format(self.token))
 		except:
 			pass
+
+	@property
+	def complete(self):
+		return self.total_repo_len == self.current_repo_itr and self.processor.complete
+
+	def handle_git(self):
+		while not self.complete:
+			# Get up to 5 strings from the queue
+			paths,num_waiting = [], 5
+			while len(paths) < num_waiting:
+				try:
+					#with self.processed_paths.lock:
+					path = self.processed_paths.get()
+					paths.append(path)
+				except queue.Empty:
+					time.sleep(10)
+					num_waiting -= 1
+
+			# Process the strings
+			for path in paths:
+				mystring.string("git add {0}".format(path)).exec()
+			mystring.string("git commit -m \"Added multiple paths\"").exec()
+			mystring.string("git push").exec()
+			for path in paths:
+				mystring.string("yes|rm -r {0}".format(path)).exec()
+
