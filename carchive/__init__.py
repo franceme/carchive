@@ -1,9 +1,8 @@
-import os, requests, json, sys, datetime, time, shutil
-import queue
-import threading
+import os, requests, json, sys, datetime, time, shutil, queue, threading
 from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Union, Callable
+from abc import ABC, abstractmethod
 
 import mystring,splittr
 
@@ -183,7 +182,7 @@ class githuburl(object):
 	def webarchive_save_url(self,):
 		return mystring.string("https://web.archive.org/save/" + self.zip_url)
 
-class GRepo_Fu(object):
+class GRepo_Pod(object):
 	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
 	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
 	def __init__(self, metrics:List[Callable[[str], Dict[str, str]]], token:str=None):
@@ -212,6 +211,14 @@ class GRepo_Fu(object):
 				with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
 					writer.write(string)
 		self.appr = appr
+	
+	class GRepo_Seed_Metric(ABC, Generic[T]):
+		@abstractmethod
+		def metric(filename:str, source_code:str) -> Dict[str, any]:
+			pass
+		@abstractmethod
+		def diff(latest:any, previous)
+
 
 
 	def __call__(self, search_string:str):
