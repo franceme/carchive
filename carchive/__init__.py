@@ -9,6 +9,7 @@ import mystring,splittr
 
 from github import Github, Repository
 import git2net
+import pygit2 as git2
 
 """
 https://pypi.org/project/python-crontab/
@@ -226,17 +227,21 @@ class GRepo_Fu(object):
 				os.makedirs(results_dir, exist_ok=True)
 				sqlite_db_file = os.path.join(results_dir, "git_to_net.sqlite")
 
-				git2net.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
+				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
 
 				# https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
 				# https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
 				git2net.mine_git_repo(repo_dir, sqlite_db_file)
 				git2net.disambiguate_aliases_db(sqlite_db_file)
-				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=[])
+				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=self.metrics)
 
 				if os.stat(sqlite_db_file).st_size > 100_000_000:
 					#The file is bigger than GitHub Allows
-					splittr.
+					with mystring.foldentre(new_path=results_dir):
+						raw_db_file = sqlite_db_file.replace(results_dir, '')
+						splittr.hash(raw_db_file)
+						splittr.split(raw_db_file, 50_000_000)
+						splittr.template(raw_db_file+".py")
 
 				appr(name)
 				#with fin_queue.lock:
