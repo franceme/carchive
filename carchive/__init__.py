@@ -1,6 +1,7 @@
 import os, requests, json, sys, datetime
 from copy import deepcopy as dc
 from typing import Dict, List, Union, Callable
+from github import Github
 
 from utils import live_link
 try:
@@ -181,18 +182,26 @@ class githuburl(object):
 	def webarchive_save_url(self,):
 		return mystring.string("https://web.archive.org/save/" + self.zip_url)
 
-
 class GRepo(object):
-	"""
-	Sample usage:
-	with GRepo("https://github.com/owner/repo","v1","hash") as repo:
-		os.path.exists(repo.reponame) #TRUE
-	"""
-	def __init__(self, repo: str, tag: str = None, commit: str = 'master', token=None):
-		self.repo = githuburl(repo,tag=tag,commit=commit)
+	def __init__(self, repo_url: str, token=None):
+		self.repo_url = repo_url
 		self.token = token
-		self.webarchive_url_base = None
-		self.zip_url_base = None
+
+
+
+
+class GRepo_Fu(object):
+	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
+	def __init__(self, metrics:Dict[
+		str, Callable[[str], Dict[str, str]]
+	], token:str=None):
+
+		self.metrics = metrics
+		self.token = token
+		if "GH_TOKEN" not in os.environ:
+			login()
+		g = Github(self.token)
+
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
@@ -201,91 +210,3 @@ class GRepo(object):
 				writer.write("GH_TOKEN={0}".format(self.token))
 		except:
 			pass
-
-	def __enter__(self):
-		self.repo.__enter__()
-		return self
-
-	def __exit__(self, exc_type, exc_val, exc_tb):
-		self.repo.__exit__(exc_type, exc_val, exc_tb)
-		return self
-
-	@property
-	def webarchive(self):
-		from waybackpy import WaybackMachineSaveAPI as checkpoint
-		url,save_url = self.repo.zip_url,None
-		try:
-			if live_link(url):
-				saver = checkpoint(url, user_agent="Mozilla/5.0 (Windows NT 5.1; rv:40.0) Gecko/20100101 Firefox/40.0")
-
-				try:
-					save_url = saver.save()
-					if save_url is None:
-						save_url = saver.saved_archive
-				except Exception as e:
-					print(f"Issue with saving the link {url}: {e}")
-					save_url = "NotAvailable"
-					pass
-		except Exception as e:
-			print(f"Issue with saving the link {url}: {e}")
-			pass
-
-		return mystring.string(save_url)
-
-	@property
-	def info(self):
-		return {
-			'URL':self.repo.furl,
-			'RepoName':self.repo.reponame,
-			'Commit':self.repo.commit,
-			'FullUrl':self.repo.stringurl,
-			'ZipUrl':self.repo.zip_url,
-			'WebArchiveSaveUrl':self.repo.webarchive_save_url
-		}
-
-	def jsonl(self, exclude_extensions=[], jsonl_file=None):
-		output = jsonl_file or []
-		if output != []:
-			writer = open(output, 'w+')
-			writer.write(str(json.dumps({**{'header': True}, **self.info})) + "\n")
-		try:
-			for root, directories, filenames in os.walk(self.repo.dir):
-				for filename in filenames:
-					foil = os.path.join(root, filename)
-					ext = foil.split('.')[-1].lower()
-
-					if "/.git/" not in foil and (exclude_extensions is None or ext not in exclude_extensions):
-						try:
-							if output != []:
-								writer.write(mystring.foil(foil).structured()+ "\n")
-							else:
-								output += [mystring.foil(foil).structured()]
-						except Exception as e:
-							print(">: "+str(e))
-							pass
-		except Exception as e:
-			print(f"Issue with creating the jsonl file: {e}")
-		finally:
-			if output != []:
-				writer.close()
-
-		return output
-
-class GRepo_Fu(object):
-	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28
-	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
-	def __init__(self, metrics:Dict[
-		str, Callable[[str], Dict[str, str]]
-	], repo_urls:object=None, token:str=None):
-
-		if repo_urls is not None:
-			self.repos = mystring.lyst([GRepo(x, token=token) for x in mystring.lyst(repo_urls)])
-		else:
-			self.repos = mystring.lyst()
-		self.metrics = metrics
-		self.token = token
-		self.api_watch = niceghapi()
-
-	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28
-	def pull_by_topic(self, topics:Union[str, List]):
-		topics = mystring.lyst(topics)
