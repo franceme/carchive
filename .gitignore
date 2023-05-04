@@ -1,4 +1,5 @@
 dist/
+CachedProfilesData/
 build/
 package_name/__pycache__/
 **/__pycache__
