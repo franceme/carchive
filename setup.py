@@ -20,7 +20,7 @@ long_description = pathlib.Path(f"{here}/README.md").read_text(encoding='utf-8')
 REQUIRES_PYTHON = '>=3.8.0'
 RELEASE = "?"
 entry_point = f"src.{NAME}"
-VERSION = "0.0.37"
+VERSION = "0.0.38"
 
 def zip_program(outputName:str = f"{NAME}.zip"):
 	#http://blog.ablepear.com/2012/10/bundling-python-files-into-stand-alone.html
@@ -109,7 +109,7 @@ setup(
 		"PyGithub", #To search for Repositories
 		#https://stackoverflow.com/questions/32688688/how-to-write-setup-py-to-include-a-git-repository-as-a-dependency/54701434#54701434
 		#https://git2net.readthedocs.io/en/latest/
-		"git2net @ git+ssh://git@github.com/franceme/git2net.git", #To gather and run metrics on the Repositories
+		"git2net @ git+https://github.com/franceme/git2net.git", #To gather and run metrics on the Repositories
 		"splittr",
 		"waybackpy",
 		"mystring",
