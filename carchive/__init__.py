@@ -10,11 +10,6 @@ from github import Github, Repository
 import git2net
 import pygit2 as git2
 
-"""
-https://pypi.org/project/python-crontab/
-https://pypi.org/project/python-cron/
-"""
-
 class niceghapi(object):
 	def __init__(self):
 		self.cur_status = None
@@ -182,7 +177,7 @@ class githuburl(object):
 	def webarchive_save_url(self,):
 		return mystring.string("https://web.archive.org/save/" + self.zip_url)
 
-T = TypeVar('T') #https://shanenullain.medium.com/abstract-factory-in-python-with-generic-typing-b9ceca2bf89e
+T = TypeVar('T')
 class GRepo_Seed_Metric(ABC, Generic[T]):
 	@abstractmethod
 	def metric(filename: str, source_code: str) -> Dict[str, T]:
@@ -198,8 +193,6 @@ class GRepo_Seed_Metric(ABC, Generic[T]):
 
 
 class GRepo_Pod(object):
-	#https://docs.github.com/en/rest/search?apiVersion=2022-11-28#constructing-a-search-query
-	#https://github.com/franceme/git2net/blob/0ca0ce7db9c3a616096a250c9412a8780dd30768/git2net/complexity.py#L110
 	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None):
 		self.metrics = metrics
 		self.token = token
@@ -214,17 +207,9 @@ class GRepo_Pod(object):
 		self.current_repo_itr = None
 		self.total_repo_len = None
 
-		if False:
-			##https://superfastpython.com/multithreaded-file-append/
-			self.mapping_file_lock = Lock()
-			with open("mapping_file.csv","w+") as writer:
-				writer.write("Repository Num, Repository, Search_String\n")
-
 		def appr(string: mystring.string):
-			#with self.mapping_file_lock:
-			if True:
-				with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
-					writer.write(string)
+			with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
+				writer.write(string)
 		self.appr = appr
 
 	def __call__(self, search_string:str):
@@ -242,14 +227,11 @@ class GRepo_Pod(object):
 
 				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
 
-				# https://git2net.readthedocs.io/en/latest/getting_started.html#tutorials
-				# https://colab.research.google.com/github/gotec/git2net-tutorials/blob/master/6_Computing_Complexities.ipynb
 				git2net.mine_git_repo(repo_dir, sqlite_db_file)
 				git2net.disambiguate_aliases_db(sqlite_db_file)
 				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=[x() for x in self.metrics])
 
 				if os.stat(sqlite_db_file).st_size > 100_000_000:
-					#The file is bigger than GitHub Allows
 					with mystring.foldentre(new_path=results_dir):
 						raw_db_file = sqlite_db_file.replace(results_dir, '')
 						splittr.hash(raw_db_file)
@@ -257,7 +239,6 @@ class GRepo_Pod(object):
 						splittr.template(raw_db_file+".py")
 
 				appr(name)
-				#with fin_queue.lock:
 				fin_queue.put(repo)
 
 			return process
@@ -286,7 +267,6 @@ class GRepo_Pod(object):
 			paths,num_waiting = [], 5
 			while len(paths) < num_waiting:
 				try:
-					#with self.processed_paths.lock:
 					path = self.processed_paths.get()
 					paths.append(path)
 				except queue.Empty:
@@ -300,4 +280,3 @@ class GRepo_Pod(object):
 			mystring.string("git push").exec()
 			for path in paths:
 				mystring.string("yes|rm -r {0}".format(path)).exec()
-
