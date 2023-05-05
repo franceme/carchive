@@ -109,7 +109,7 @@ setup(
 		"PyGithub", #To search for Repositories
 		#https://stackoverflow.com/questions/32688688/how-to-write-setup-py-to-include-a-git-repository-as-a-dependency/54701434#54701434
 		#https://git2net.readthedocs.io/en/latest/
-		"git+ssh://git@github.com/franceme/git2net.git", #To gather and run metrics on the Repositories
+		"https://github.com/franceme/git2net/tarball/master", #To gather and run metrics on the Repositories
 		"splittr",
 		"waybackpy",
 		"mystring",
