@@ -105,11 +105,8 @@ setup(
 	entry_points={
 	},
 	install_requires=[
-		#https://pygithub.readthedocs.io/en/latest/introduction.html
-		"PyGithub", #To search for Repositories
-		#https://stackoverflow.com/questions/32688688/how-to-write-setup-py-to-include-a-git-repository-as-a-dependency/54701434#54701434
-		#https://git2net.readthedocs.io/en/latest/
-		"https://github.com/franceme/git2net/tarball/master", #To gather and run metrics on the Repositories
+		"PyGithub", 
+		"git2net @ git+ssh://git@github.com/franceme/git2net/tarball/master@0ca0ce7db9c3a616096a250c9412a8780dd30768", 
 		"splittr",
 		"waybackpy",
 		"mystring",
