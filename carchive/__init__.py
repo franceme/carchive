@@ -180,11 +180,11 @@ class githuburl(object):
 T = TypeVar('T')
 class GRepo_Seed_Metric(ABC, Generic[T]):
 	@abstractmethod
-	def metric(filename: str, source_code: str) -> Dict[str, T]:
+	def metric(self, filename: str, source_code: str) -> Dict[str, T]:
 		pass
 
 	@abstractmethod
-	def diff(latest: T, previous: T):
+	def diff(self, latest: T, previous: T):
 		pass
 
 	def __call__(self):
