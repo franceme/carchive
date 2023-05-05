@@ -5,7 +5,7 @@ from typing import Dict, List, Callable, Generic, TypeVar
 from abc import ABC, abstractmethod
 
 import mystring,splittr
-
+import pause
 from github import Github, Repository
 import git2net
 import pygit2 as git2
@@ -14,6 +14,7 @@ class niceghapi(object):
 	def __init__(self):
 		self.cur_status = None
 		self.now = None
+		self.resetdate = None
 
 	@property
 	def status(self):
@@ -38,14 +39,13 @@ class niceghapi(object):
 			print(stats)
 			self.remaining = int(stats['Remaining'])
 			self.wait_until = stats['WaitForNow']
+			self.resetdate = stats['RemainingDate']
 			self.timing
 		elif self.remaining >= 10:
 			self.remaining = self.remaining - 1
 		else:
-			time_to_sleep = self.wait_until
-			for itr in range(time_to_sleep):
-				print("{}/{}".format(itr,time_to_sleep))
-				time.sleep(1)
+			print("Waiting until: {0}".format(self.resetdate))
+			pause.until(self.resetdate)
 			delattr(self, 'remaining')
 			delattr(self, 'wait_until')
 		return
@@ -213,9 +213,20 @@ class GRepo_Pod(object):
 				writer.write(string)
 		self.appr = appr
 		self.api_watch = niceghapi()
+	
+	@property
+	def timing(self):
+		self.api_watch.timing
+
+		extra_rate_limiting = self.g.get_rate_limit()
+		if hasattr(extra_rate_limiting, "search"):
+			search_limits = getattr(extra_rate_limiting, "search")
+			if search_limits.remaining < 2:
+				print("Waiting until: {0}".format(search_limits.reset))
+				pause.until(search_limits.reset)
 
 	def __call__(self, search_string:str):
-		self.api_watch.timing
+		self.timing
 		search_string = mystring.string(search_string)
 
 		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
