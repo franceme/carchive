@@ -38,6 +38,7 @@ class niceghapi(object):
 			print(stats)
 			self.remaining = int(stats['Remaining'])
 			self.wait_until = stats['WaitForNow']
+			self.timing
 		elif self.remaining >= 10:
 			self.remaining = self.remaining - 1
 		else:
@@ -211,8 +212,10 @@ class GRepo_Pod(object):
 			with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
 				writer.write(string)
 		self.appr = appr
+		self.api_watch = niceghapi()
 
 	def __call__(self, search_string:str):
+		self.api_watch.timing
 		search_string = mystring.string(search_string)
 
 		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
@@ -244,10 +247,13 @@ class GRepo_Pod(object):
 			return process
 
 		repos = self.g.search_repositories(query=search_string)
-		self.total_repo_len = len(repos) - 1
-		for repo_itr, repo in enumerate(repos):
-			self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
-			self.current_repo_itr = repo_itr
+		self.total_repo_len = repos.totalCount
+		if self.total_repo_len > 0:
+			for repo_itr, repo in enumerate(repos):
+				self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
+				self.current_repo_itr = repo_itr
+		else:
+			print("No Repos Found")
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
