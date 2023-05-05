@@ -18,7 +18,7 @@ class niceghapi(object):
 	@property
 	def status(self):
 		# curl -I https://api.github.com/users/octocat|grep x-ratelimit-reset
-		self.cur_status, self.now = requests.get("https://api.github.com/users/octocat").json()['data'].headers, datetime.datetime.now()
+		self.cur_status, self.now = requests.get("https://api.github.com/users/octocat").headers, datetime.datetime.now()
 		return {
 			'Reset': self.cur_status['X-RateLimit-Reset'],
 			'Used': self.cur_status['X-RateLimit-Used'],
