@@ -20,7 +20,7 @@ long_description = pathlib.Path(f"{here}/README.md").read_text(encoding='utf-8')
 REQUIRES_PYTHON = '>=3.8.0'
 RELEASE = "?"
 entry_point = f"src.{NAME}"
-VERSION = "0.0.41"
+VERSION = "0.0.42"
 
 def zip_program(outputName:str = f"{NAME}.zip"):
 	#http://blog.ablepear.com/2012/10/bundling-python-files-into-stand-alone.html
@@ -107,7 +107,7 @@ setup(
 	install_requires=[
 		"PyGithub", 
 		#"git2net @ git+ssh://git@github.com/franceme/git2net/tarball/master@0ca0ce7db9c3a616096a250c9412a8780dd30768",
-		"git2net@git+http://@github.com/franceme/git2net"
+		"git2net@git+http://github.com/franceme/git2net"
 		"splittr",
 		"waybackpy",
 		"mystring",
