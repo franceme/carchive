@@ -194,7 +194,7 @@ class GRepo_Seed_Metric(ABC, Generic[T]):
 
 
 class GRepo_Pod(object):
-	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None):
+	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None,num_processes:int = None):
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
@@ -207,6 +207,7 @@ class GRepo_Pod(object):
 
 		self.current_repo_itr = None
 		self.total_repo_len = None
+		self.num_processes = num_processes
 
 		def appr(string: mystring.string):
 			with open("mapping_file_{0}.csv".format(string.tobase64()), "a+") as writer:
@@ -241,7 +242,11 @@ class GRepo_Pod(object):
 
 				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
 
-				git2net.mine_git_repo(repo_dir, sqlite_db_file)
+				if self.num_processes is None:
+					git2net.mine_git_repo(repo_dir, sqlite_db_file)
+				else:
+					git2net.mine_git_repo(repo_dir, sqlite_db_file, no_of_processes=self.num_processes)
+
 				git2net.disambiguate_aliases_db(sqlite_db_file)
 				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=[x() for x in self.metrics])
 
