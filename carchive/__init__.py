@@ -229,7 +229,7 @@ class GRepo_Pod(object):
 	
 	def repair(self,path,create:bool=True):
 		if self.delete_paths and os.path.exists(path):
-			os.remove(path)
+			os.system("yes|rm -r "+str(path))
 		if create:
 			os.makedirs(path, exist_ok=True)
 
