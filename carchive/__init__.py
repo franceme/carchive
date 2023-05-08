@@ -260,7 +260,8 @@ class GRepo_Pod(object):
 					git2net.mine_git_repo(repo_dir, sqlite_db_file)
 				else:
 					git2net.mine_git_repo(repo_dir, sqlite_db_file, no_of_processes=self.num_processes)
-
+				
+				git2net.mining_state_summary(repo_dir, sqlite_db_file)
 				git2net.disambiguate_aliases_db(sqlite_db_file)
 				git2net.compute_complexity(repo_dir, sqlite_db_file, no_of_processes=1, extra_eval_methods=self.metrics)
 
