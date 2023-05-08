@@ -258,7 +258,7 @@ class GRepo_Pod(object):
 					git2net.mine_git_repo(repo_dir, sqlite_db_file, no_of_processes=self.num_processes)
 
 				git2net.disambiguate_aliases_db(sqlite_db_file)
-				git2net.compute_complexity(repo_dir, sqlite_db_file, extra_eval_methods=self.metrics)
+				git2net.compute_complexity(repo_dir, sqlite_db_file, no_of_processes=1, extra_eval_methods=self.metrics)
 
 				if os.stat(sqlite_db_file).st_size > 100_000_000:
 					with mystring.foldentre(new_path=results_dir):
