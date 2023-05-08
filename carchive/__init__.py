@@ -228,7 +228,7 @@ class GRepo_Pod(object):
 				pause.until(search_limits.reset)
 	
 	def repair(self,path,create:bool=True):
-		if self.delete_paths:
+		if self.delete_paths and os.path.exists(path):
 			os.remove(path)
 		if create:
 			os.makedirs(path, exist_ok=True)
