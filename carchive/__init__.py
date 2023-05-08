@@ -181,6 +181,10 @@ class githuburl(object):
 T = TypeVar('T')
 class GRepo_Seed_Metric(ABC, Generic[T]):
 	@abstractmethod
+	def name(self) -> str:
+		pass
+
+	@abstractmethod
 	def metric(self, filename: str, source_code: str) -> Dict[str, T]:
 		pass
 
