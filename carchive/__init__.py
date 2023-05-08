@@ -194,7 +194,7 @@ class GRepo_Seed_Metric(ABC, Generic[T]):
 
 
 class GRepo_Pod(object):
-	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None,num_processes:int = None):
+	def __init__(self, metrics:List[GRepo_Seed_Metric], token:str=None,num_processes:int = None, delete_paths:bool=False):
 		self.metrics = metrics
 		self.token = token
 		if "GH_TOKEN" not in os.environ:
@@ -214,6 +214,7 @@ class GRepo_Pod(object):
 				writer.write(string)
 		self.appr = appr
 		self.api_watch = niceghapi()
+		self.delete_paths = delete_paths
 	
 	@property
 	def timing(self):
@@ -225,6 +226,12 @@ class GRepo_Pod(object):
 			if search_limits.remaining < 2:
 				print("Waiting until: {0}".format(search_limits.reset))
 				pause.until(search_limits.reset)
+	
+	def repair(self,path,create:bool=True):
+		if self.delete_paths:
+			os.remove(path)
+		if create:
+			os.makedirs(path, exist_ok=True)
 
 	def __call__(self, search_string:str):
 		self.timing
@@ -237,7 +244,10 @@ class GRepo_Pod(object):
 				))
 				repo_dir = "repo_" + str(name.tobase64())
 				results_dir = "results_" + str(name.tobase64())
-				os.makedirs(results_dir, exist_ok=True)
+
+				self.repair(repo_dir, create=False)
+				self.repair(results_dir)
+
 				sqlite_db_file = os.path.join(results_dir, "git_to_net.sqlite")
 
 				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
