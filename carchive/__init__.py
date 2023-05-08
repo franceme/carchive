@@ -185,7 +185,7 @@ class GRepo_Seed_Metric(ABC, Generic[T]):
 		pass
 
 	@abstractmethod
-	def metric(self, filename: str, source_code: str) -> Dict[str, T]:
+	def metric(self, filename: str, source_code: str) -> T:
 		pass
 
 	@abstractmethod
