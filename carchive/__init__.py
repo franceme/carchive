@@ -272,7 +272,7 @@ class GRepo_Pod(object):
 						splittr.split(raw_db_file, 50_000_000)
 						splittr.template(raw_db_file+".py")
 
-				appr(name.replace(',',';').replace('_',',').strip())
+				appr(mystring.string(name.replace(',',';').replace('_',',').strip()))
 				fin_queue.put(repo)
 
 			return process
