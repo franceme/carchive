@@ -1,4 +1,4 @@
-import os, requests, datetime, time, queue, threading
+import os, requests, datetime, time, queue, threading, asyncio
 from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Callable, Generic, TypeVar
@@ -219,6 +219,7 @@ class GRepo_Pod(object):
 		self.appr = appr
 		self.api_watch = niceghapi()
 		self.delete_paths = delete_paths
+		asyncio.run(self.handle_git())
 	
 	@property
 	def timing(self):
@@ -243,7 +244,7 @@ class GRepo_Pod(object):
 
 		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
 			def process():
-				name = mystring.string("ITR:{0}_URL:{1}_STR:{2}\n".format(
+				name = mystring.string("ITR>{0}_URL>{1}_STR>{2}\n".format(
 					repo_itr, repo.url, search_string
 				))
 				repo_dir = "repo_" + str(name.tobase64())
@@ -298,7 +299,7 @@ class GRepo_Pod(object):
 	def complete(self):
 		return self.total_repo_len == self.current_repo_itr and self.processor.complete
 
-	def handle_git(self):
+	async def handle_git(self):
 		while not self.complete:
 			# Get up to 5 strings from the queue
 			paths,num_waiting = [], 5
