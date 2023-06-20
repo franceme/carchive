@@ -220,7 +220,14 @@ class GRepo_Pod(object):
 		self.api_watch = niceghapi()
 		self.delete_paths = delete_paths
 		asyncio.run(self.handle_git())
-	
+
+	def save(self, current_project:str=None):
+		file_name = mystring.string("")
+		return
+
+	def load (self):
+		return
+
 	@property
 	def timing(self):
 		self.api_watch.timing
