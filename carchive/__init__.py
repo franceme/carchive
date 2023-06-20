@@ -10,6 +10,8 @@ from github import Github, Repository
 import git2net
 import pygit2 as git2
 
+GRepo_Saving_Progress_Lock = threading.Lock()
+
 class niceghapi(object):
 	def __init__(self):
 		self.cur_status = None
@@ -228,19 +230,20 @@ class GRepo_Pod(object):
 		file_name = mystring.string("{query_string}".format(query_string=self.query_string)).tobase64()
 		file_name = mystring.string("query_progress_{0}.csv".format(file_name))
 
-		if not os.path.exists(file_name):
-			with open(file_name, "w+") as writer:
-				writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
-				for proj_itr, proj in enumerate(self.repos):
-					writer.write("{0},{1},false\n".format(proj_itr, proj))
+		with GRepo_Saving_Progress_Lock:
+			if not os.path.exists(file_name):
+				with open(file_name, "w+") as writer:
+					writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
+					for proj_itr, proj in enumerate(self.repos):
+						writer.write("{0},{1},false\n".format(proj_itr, proj))
 
-		if current_project_url is not None:
-			found = False
-			with finput(file_name, inplace=True) as reader:
-				for line in reader:
-					if not found and current_project_url in line:
-						line = line.replace("false", "true")
-					print(line, end='')
+			if current_project_url is not None:
+				found = False
+				with finput(file_name, inplace=True) as reader:
+					for line in reader:
+						if not found and current_project_url in line:
+							line = line.replace("false", "true")
+						print(line, end='')
 		return
 
 	def load(self):
