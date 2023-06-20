@@ -3,7 +3,7 @@ from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Callable, Generic, TypeVar
 from abc import ABC, abstractmethod
-
+from fileinput import FileInput as finput
 import mystring,splittr
 import pause
 from github import Github, Repository
@@ -219,13 +219,45 @@ class GRepo_Pod(object):
 		self.appr = appr
 		self.api_watch = niceghapi()
 		self.delete_paths = delete_paths
+		self.query_string = None
+		self.repos = []
 		asyncio.run(self.handle_git())
 
-	def save(self, current_project:str=None):
-		file_name = mystring.string("")
+	def save(self, current_project_url:str=None):
+		#Make Thread Safe
+		file_name = mystring.string("{query_string}".format(query_string=self.query_string)).tobase64()
+		file_name = mystring.string("query_progress_{0}.csv".format(file_name))
+
+		if not os.path.exists(file_name):
+			with open(file_name, "w+") as writer:
+				writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
+				for proj_itr, proj in enumerate(self.repos):
+					writer.write("{0},{1},false\n".format(proj_itr, proj))
+
+		if current_project_url is not None:
+			found = False
+			with finput(file_name, inplace=True) as reader:
+				for line in reader:
+					if not found and current_project_url in line:
+						line = line.replace("false", "true")
+					print(line, end='')
 		return
 
-	def load (self):
+	def load(self):
+		file_name = mystring.string("{query_string}".format(query_string=self.query_string)).tobase64()
+		file_name = mystring.string("query_progress_{0}.csv".format(file_name))
+
+		self.repos = []
+
+		if os.path.exists(file_name):
+			with open(file_name, "r") as reader:
+				for line in reader:
+					ProjectItr, ProjectURL, ProjectScanned = line.split(",")
+					if ProjectScanned == "false":
+						self.repos.append(ProjectURL)
+		else:
+			self.repos = [x.clone_url for x in self.g.search_repositories(query=self.query_string)]
+
 		return
 
 	@property
@@ -250,6 +282,7 @@ class GRepo_Pod(object):
 		search_string = mystring.string(search_string)
 
 		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
+			self.query_string = search_string
 			def process():
 				name = mystring.string("ITR>{0}_URL>{1}_STR>{2}\n".format(
 					repo_itr, repo.url, search_string
@@ -285,10 +318,11 @@ class GRepo_Pod(object):
 
 			return process
 
-		repos = self.g.search_repositories(query=search_string)
-		self.total_repo_len = repos.totalCount
+		self.load()
+		self.total_repo_len = len(self.repos)
+
 		if self.total_repo_len > 0:
-			for repo_itr, repo in enumerate(repos):
+			for repo_itr, repo in enumerate(self.repos):
 				self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
 				self.current_repo_itr = repo_itr
 		else:
