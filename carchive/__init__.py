@@ -322,9 +322,8 @@ class GRepo_Pod(object):
 			return process
 
 		self.load()
-		self.total_repo_len = len(self.repos)
 
-		if self.total_repo_len > 0:
+		if len(self.repos) > 0:
 			for repo_itr, repo in enumerate(self.repos):
 				self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
 				self.current_repo_itr = repo_itr
