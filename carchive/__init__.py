@@ -222,45 +222,49 @@ class GRepo_Pod(object):
 		self.api_watch = niceghapi()
 		self.delete_paths = delete_paths
 		self.query_string = None
-		self.repos = []
+		self.tracking_repos = None
+		self.tracking_name = None
 		asyncio.run(self.handle_git())
+
+	@property
+	def localfile(self):
+		if self.tracking_name is None:
+			self.tracking_name = mystring.string("query_progress_{0}.csv".format(
+				mystring.string("{query_string}".format(query_string=self.query_string)).tobase64())
+			)
+		return self.tracking_name
+
+
+	@property
+	def repos(self):
+		if self.tracking_repos is None:
+			self.tracking_repos = []
+			if os.path.exists(self.localfile):
+				with open(self.localfile, "r") as reader:
+					for line in reader:
+						ProjectItr, ProjectURL, ProjectScanned = line.split(",")
+						if ProjectScanned == "false":
+							self.tracking_repos.append(ProjectURL)
+			else:
+				self.tracking_repos = [x.clone_url for x in self.g.search_repositories(query=self.query_string)]
+		return self.tracking_repos
 
 	def save(self, current_project_url:str=None):
 		#Make Thread Safe
-		file_name = mystring.string("{query_string}".format(query_string=self.query_string)).tobase64()
-		file_name = mystring.string("query_progress_{0}.csv".format(file_name))
-
 		with GRepo_Saving_Progress_Lock:
-			if not os.path.exists(file_name):
-				with open(file_name, "w+") as writer:
+			if not os.path.exists(self.localfile):
+				with open(self.localfile, "w+") as writer:
 					writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
 					for proj_itr, proj in enumerate(self.repos):
 						writer.write("{0},{1},false\n".format(proj_itr, proj))
 
 			if current_project_url is not None:
 				found = False
-				with finput(file_name, inplace=True) as reader:
+				with finput(self.localfile, inplace=True) as reader:
 					for line in reader:
 						if not found and current_project_url in line:
 							line = line.replace("false", "true")
 						print(line, end='')
-		return
-
-	def load(self):
-		file_name = mystring.string("{query_string}".format(query_string=self.query_string)).tobase64()
-		file_name = mystring.string("query_progress_{0}.csv".format(file_name))
-
-		self.repos = []
-
-		if os.path.exists(file_name):
-			with open(file_name, "r") as reader:
-				for line in reader:
-					ProjectItr, ProjectURL, ProjectScanned = line.split(",")
-					if ProjectScanned == "false":
-						self.repos.append(ProjectURL)
-		else:
-			self.repos = [x.clone_url for x in self.g.search_repositories(query=self.query_string)]
-
 		return
 
 	@property
@@ -284,11 +288,11 @@ class GRepo_Pod(object):
 		self.timing
 		search_string = mystring.string(search_string)
 
-		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
+		def process_prep(repo_itr:int, repo_clone_url:str, search_string:str, appr:Callable, fin_queue:queue.Queue):
 			self.query_string = search_string
 			def process():
 				name = mystring.string("ITR>{0}_URL>{1}_STR>{2}\n".format(
-					repo_itr, repo.url, search_string
+					repo_itr, repo_clone_url, search_string
 				))
 				repo_dir = "repo_" + str(name.tobase64())
 				results_dir = "results_" + str(name.tobase64())
@@ -298,7 +302,7 @@ class GRepo_Pod(object):
 
 				sqlite_db_file = os.path.join(results_dir, "git_to_net.sqlite")
 
-				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
+				git2.clone_repository(repo_clone_url, repo_dir)  # Clones a non-bare repository
 
 				if self.num_processes is None:
 					git2net.mine_git_repo(repo_dir, sqlite_db_file)
@@ -321,11 +325,9 @@ class GRepo_Pod(object):
 
 			return process
 
-		self.load()
-
 		if len(self.repos) > 0:
-			for repo_itr, repo in enumerate(self.repos):
-				self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
+			for repo_itr, repo_url in enumerate(self.repos):
+				self.processor += process_prep(repo_itr, repo_url, search_string, self.appr, self.processed_paths)
 				self.current_repo_itr = repo_itr
 		else:
 			print("No Repos Found")
