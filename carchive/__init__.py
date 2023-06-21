@@ -9,6 +9,7 @@ import pause
 from github import Github, Repository
 import git2net
 import pygit2 as git2
+from contextlib import suppress
 
 GRepo_Saving_Progress_Lock = threading.Lock()
 
@@ -334,11 +335,9 @@ class GRepo_Pod(object):
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
-		try:
+		with suppress(Exception):
 			with open("~/.bashrc", "a+") as writer:
 				writer.write("GH_TOKEN={0}".format(self.token))
-		except:
-			pass
 
 	@property
 	def complete(self):
