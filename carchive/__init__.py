@@ -3,12 +3,15 @@ from copy import deepcopy as dc
 from threading import Lock
 from typing import Dict, List, Callable, Generic, TypeVar
 from abc import ABC, abstractmethod
-
+from fileinput import FileInput as finput
 import mystring,splittr
 import pause
 from github import Github, Repository
 import git2net
 import pygit2 as git2
+from contextlib import suppress
+
+GRepo_Saving_Progress_Lock = threading.Lock()
 
 class niceghapi(object):
 	def __init__(self):
@@ -219,8 +222,52 @@ class GRepo_Pod(object):
 		self.appr = appr
 		self.api_watch = niceghapi()
 		self.delete_paths = delete_paths
-		asyncio.run(self.handle_git())
-	
+		self.query_string = None
+		self.tracking_repos = None
+		self.tracking_name = None
+		asyncio.run(self.handle_history())
+
+	@property
+	def localfilename(self):
+		if self.tracking_name is None:
+			self.tracking_name = mystring.string("query_progress_{0}.csv".format(
+				mystring.string("{query_string}".format(query_string=self.query_string)).tobase64())
+			)
+		return self.tracking_name
+
+
+	@property
+	def repos(self):
+		if self.tracking_repos is None:
+			self.tracking_repos = []
+			if os.path.exists(self.localfilename):
+				with open(self.localfilename, "r") as reader:
+					for line in reader:
+						ProjectItr, ProjectURL, ProjectScanned = line.split(",")
+						if ProjectScanned == "false":
+							self.tracking_repos.append(ProjectURL)
+			else:
+				self.tracking_repos = [x.clone_url for x in self.g.search_repositories(query=self.query_string)]
+		return self.tracking_repos
+
+	def save(self, current_project_url:str=None):
+		#Make Thread Safe
+		with GRepo_Saving_Progress_Lock:
+			if not os.path.exists(self.localfilename):
+				with open(self.localfilename, "w+") as writer:
+					writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
+					for proj_itr, proj in enumerate(self.repos):
+						writer.write("{0},{1},false\n".format(proj_itr, proj))
+
+			if current_project_url is not None:
+				found = False
+				with finput(self.localfilename, inplace=True) as reader:
+					for line in reader:
+						if not found and current_project_url in line:
+							line = line.replace("false", "true")
+						print(line, end='')
+		return
+
 	@property
 	def timing(self):
 		self.api_watch.timing
@@ -242,10 +289,11 @@ class GRepo_Pod(object):
 		self.timing
 		search_string = mystring.string(search_string)
 
-		def process_prep(repo_itr:int, repo:Repository, search_string:str, appr:Callable, fin_queue:queue.Queue):
+		def process_prep(repo_itr:int, repo_clone_url:str, search_string:str, appr:Callable, fin_queue:queue.Queue):
+			self.query_string = search_string
 			def process():
 				name = mystring.string("ITR>{0}_URL>{1}_STR>{2}\n".format(
-					repo_itr, repo.url, search_string
+					repo_itr, repo_clone_url, search_string
 				))
 				repo_dir = "repo_" + str(name.tobase64())
 				results_dir = "results_" + str(name.tobase64())
@@ -255,7 +303,7 @@ class GRepo_Pod(object):
 
 				sqlite_db_file = os.path.join(results_dir, "git_to_net.sqlite")
 
-				git2.clone_repository(repo.clone_url, repo_dir)  # Clones a non-bare repository
+				git2.clone_repository(repo_clone_url, repo_dir)  # Clones a non-bare repository
 
 				if self.num_processes is None:
 					git2net.mine_git_repo(repo_dir, sqlite_db_file)
@@ -274,32 +322,28 @@ class GRepo_Pod(object):
 						splittr.template(raw_db_file+".py")
 
 				appr(mystring.string(name.replace(',',';').replace('_',',').strip()))
-				fin_queue.put(repo)
+				fin_queue.put(repo_clone_url)
 
 			return process
 
-		repos = self.g.search_repositories(query=search_string)
-		self.total_repo_len = repos.totalCount
-		if self.total_repo_len > 0:
-			for repo_itr, repo in enumerate(repos):
-				self.processor += process_prep(repo_itr, repo, search_string, self.appr, self.processed_paths)
+		if len(self.repos) > 0:
+			for repo_itr, repo_url in enumerate(self.repos):
+				self.processor += process_prep(repo_itr, repo_url, search_string, self.appr, self.processed_paths)
 				self.current_repo_itr = repo_itr
 		else:
 			print("No Repos Found")
 
 	def login(self):
 		os.environ['GH_TOKEN'] = self.token
-		try:
+		with suppress(Exception):
 			with open("~/.bashrc", "a+") as writer:
 				writer.write("GH_TOKEN={0}".format(self.token))
-		except:
-			pass
 
 	@property
 	def complete(self):
 		return self.total_repo_len == self.current_repo_itr and self.processor.complete
 
-	async def handle_git(self):
+	async def handle_history(self):
 		while not self.complete:
 			# Get up to 5 strings from the queue
 			paths,num_waiting = [], 5
@@ -318,3 +362,6 @@ class GRepo_Pod(object):
 			mystring.string("git push").exec()
 			for path in paths:
 				mystring.string("yes|rm -r {0}".format(path)).exec()
+
+			for path in paths:
+				self.save(path)
