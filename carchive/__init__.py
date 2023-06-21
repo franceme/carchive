@@ -224,10 +224,10 @@ class GRepo_Pod(object):
 		self.query_string = None
 		self.tracking_repos = None
 		self.tracking_name = None
-		asyncio.run(self.handle_git())
+		asyncio.run(self.handle_history())
 
 	@property
-	def localfile(self):
+	def localfilename(self):
 		if self.tracking_name is None:
 			self.tracking_name = mystring.string("query_progress_{0}.csv".format(
 				mystring.string("{query_string}".format(query_string=self.query_string)).tobase64())
@@ -239,8 +239,8 @@ class GRepo_Pod(object):
 	def repos(self):
 		if self.tracking_repos is None:
 			self.tracking_repos = []
-			if os.path.exists(self.localfile):
-				with open(self.localfile, "r") as reader:
+			if os.path.exists(self.localfilename):
+				with open(self.localfilename, "r") as reader:
 					for line in reader:
 						ProjectItr, ProjectURL, ProjectScanned = line.split(",")
 						if ProjectScanned == "false":
@@ -252,15 +252,15 @@ class GRepo_Pod(object):
 	def save(self, current_project_url:str=None):
 		#Make Thread Safe
 		with GRepo_Saving_Progress_Lock:
-			if not os.path.exists(self.localfile):
-				with open(self.localfile, "w+") as writer:
+			if not os.path.exists(self.localfilename):
+				with open(self.localfilename, "w+") as writer:
 					writer.write("ProjectItr,ProjectURL,ProjectScanned\n")
 					for proj_itr, proj in enumerate(self.repos):
 						writer.write("{0},{1},false\n".format(proj_itr, proj))
 
 			if current_project_url is not None:
 				found = False
-				with finput(self.localfile, inplace=True) as reader:
+				with finput(self.localfilename, inplace=True) as reader:
 					for line in reader:
 						if not found and current_project_url in line:
 							line = line.replace("false", "true")
@@ -321,7 +321,7 @@ class GRepo_Pod(object):
 						splittr.template(raw_db_file+".py")
 
 				appr(mystring.string(name.replace(',',';').replace('_',',').strip()))
-				fin_queue.put(repo)
+				fin_queue.put(repo_clone_url)
 
 			return process
 
@@ -344,7 +344,7 @@ class GRepo_Pod(object):
 	def complete(self):
 		return self.total_repo_len == self.current_repo_itr and self.processor.complete
 
-	async def handle_git(self):
+	async def handle_history(self):
 		while not self.complete:
 			# Get up to 5 strings from the queue
 			paths,num_waiting = [], 5
@@ -363,3 +363,6 @@ class GRepo_Pod(object):
 			mystring.string("git push").exec()
 			for path in paths:
 				mystring.string("yes|rm -r {0}".format(path)).exec()
+
+			for path in paths:
+				self.save(path)
