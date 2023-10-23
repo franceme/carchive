@@ -105,14 +105,14 @@ setup(
 	entry_points={
 	},
 	install_requires=[
-		"PyGithub", 
+		"PyGithub",  #https://github.com/pygithub/pygithub
 		#"git2net @ git+ssh://git@github.com/franceme/git2net/tarball/master@0ca0ce7db9c3a616096a250c9412a8780dd30768",
-		"git4net",
-		"splittr",
-		"waybackpy",
-		"mystring",
-		"pygit2",
-		"pause",
+		"git4net", #https://github.com/franceme/git4net
+		"splittr", #https://github.com/franceme/xpiz
+		"waybackpy", #https://akamhy.github.io/waybackpy/
+		"mystring", #https://github.com/franceme/mystring
+		"pygit2", #https://github.com/libgit2/pygit2
+		"pause" #https://github.com/jgillick/python-pause
 	],
 	include_package_data=True,
 	classifiers=[
